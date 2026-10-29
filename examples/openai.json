@@ -1,0 +1,29 @@
+{
+  "id": "chatcmpl-demo",
+  "object": "chat.completion",
+  "created": 1793277663,
+  "model": "gpt-4.1-mini",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "I'll search flights, then compare prices.",
+        "tool_calls": [
+          {
+            "id": "call_search",
+            "type": "function",
+            "function": {
+              "name": "search_flights",
+              "arguments": "{\"origin\":\"SFO\",\"dest\":\"NRT\",\"date\":\"2026-11-05\"}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 214,
+    "completion_tokens": 38
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "id": "run-agent-executor",
+  "name": "AgentExecutor",
+  "run_type": "chain",
+  "start_time": "2026-10-29T15:00:00.000Z",
+  "end_time": "2026-10-29T15:00:04.200Z",
+  "inputs": {
+    "messages": [{ "role": "human", "content": "Summarize yesterday's deploys." }]
+  },
+  "outputs": { "output": "Two deploys, one rollback on payments-api." },
+  "child_runs": [
+    {
+      "name": "ChatOpenAI",
+      "run_type": "llm",
+      "start_time": "2026-10-29T15:00:00.050Z",
+      "end_time": "2026-10-29T15:00:00.800Z",
+      "inputs": {
+        "messages": [{ "role": "human", "content": "Summarize yesterday's deploys." }]
+      },
+      "outputs": {
+        "generations": [[{ "text": "Action: list_deploys\nAction Input: since=yesterday" }]]
+      }
+    },
+    {
+      "name": "list_deploys",
+      "run_type": "tool",
+      "start_time": "2026-10-29T15:00:00.820Z",
+      "end_time": "2026-10-29T15:00:01.400Z",
+      "inputs": { "since": "yesterday" },
+      "outputs": {
+        "deploys": [
+          { "service": "web", "sha": "a1b2c3d", "status": "success" },
+          { "service": "payments-api", "sha": "deadbee", "status": "rolled_back" }
+        ]
+      }
+    },
+    {
+      "name": "page_status",
+      "run_type": "tool",
+      "start_time": "2026-10-29T15:00:01.420Z",
+      "end_time": "2026-10-29T15:00:01.500Z",
+      "inputs": { "service": "payments-api" },
+      "error": "404 incident not found"
+    },
+    {
+      "name": "ChatOpenAI",
+      "run_type": "llm",
+      "start_time": "2026-10-29T15:00:01.620Z",
+      "end_time": "2026-10-29T15:00:04.100Z",
+      "outputs": {
+        "generations": [[{ "text": "Two deploys, one rollback on payments-api." }]]
+      }
+    }
+  ]
+}

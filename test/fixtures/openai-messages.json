@@ -1,0 +1,39 @@
+[
+  { "role": "system", "content": "You are a terse SRE copilot." },
+  { "role": "user", "content": "Restart the payments worker." },
+  {
+    "role": "assistant",
+    "content": "Checking replica count, then bouncing one pod.",
+    "tool_calls": [
+      {
+        "id": "call_1",
+        "type": "function",
+        "function": { "name": "kubectl_get", "arguments": "{\"kind\":\"deploy\",\"name\":\"payments-worker\"}" }
+      }
+    ]
+  },
+  {
+    "role": "tool",
+    "tool_call_id": "call_1",
+    "name": "kubectl_get",
+    "content": "{\"replicas\":3,\"ready\":3}"
+  },
+  {
+    "role": "assistant",
+    "content": null,
+    "tool_calls": [
+      {
+        "id": "call_2",
+        "type": "function",
+        "function": { "name": "kubectl_rollout", "arguments": "{\"name\":\"payments-worker\"}" }
+      }
+    ]
+  },
+  {
+    "role": "tool",
+    "tool_call_id": "call_2",
+    "name": "kubectl_rollout",
+    "content": "rollout complete"
+  },
+  { "role": "assistant", "content": "payments-worker rolled; 3/3 ready." }
+]
