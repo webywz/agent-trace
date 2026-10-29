@@ -1,0 +1,4 @@
+{"type":"user","content":"Open README and tell me the license."}
+{"type":"tool_call","name":"Read","args":{"path":"README.md"}}
+{"type":"tool_result","name":"Read","content":"# agent-trace\n\nMIT License"}
+{"type":"assistant","content":"MIT."}

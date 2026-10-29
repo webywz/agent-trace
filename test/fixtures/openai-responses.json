@@ -1,0 +1,23 @@
+{
+  "object": "response",
+  "output": [
+    { "type": "reasoning", "summary": [{ "type": "summary_text", "text": "Need weather then a jacket call." }] },
+    {
+      "type": "function_call",
+      "call_id": "fc_1",
+      "name": "get_weather",
+      "arguments": "{\"city\":\"Osaka\"}"
+    },
+    {
+      "type": "function_call_output",
+      "call_id": "fc_1",
+      "output": "12C, light rain"
+    },
+    {
+      "type": "message",
+      "role": "assistant",
+      "content": [{ "type": "output_text", "text": "Pack a rain jacket. Osaka is 12°C and wet." }]
+    }
+  ],
+  "usage": { "input_tokens": 80, "output_tokens": 24 }
+}

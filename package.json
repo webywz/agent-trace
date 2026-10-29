@@ -1,0 +1,61 @@
+{
+  "name": "@webywz/agent-trace",
+  "version": "0.1.0",
+  "description": "Turn messy agent run logs into a readable timeline.",
+  "type": "module",
+  "bin": {
+    "agent-trace": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "examples",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "tsx --test test/*.test.ts",
+    "dev": "tsx src/cli.ts",
+    "prepublishOnly": "npm test && npm run build"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/webywz/agent-trace.git"
+  },
+  "bugs": {
+    "url": "https://github.com/webywz/agent-trace/issues"
+  },
+  "homepage": "https://github.com/webywz/agent-trace#readme",
+  "keywords": [
+    "agent",
+    "trace",
+    "timeline",
+    "openai",
+    "langchain",
+    "jsonl",
+    "cli",
+    "llm",
+    "tool-calls"
+  ],
+  "author": "webywz",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,5 @@
+{"event":"on_chain_start","name":"AgentExecutor","ts":"2026-10-29T16:00:00.000Z"}
+{"event":"on_tool_start","name":"Search","input":"site:example.com agent-trace","ts":"2026-10-29T16:00:00.200Z"}
+{"event":"on_tool_end","name":"Search","output":"0 hits","ts":"2026-10-29T16:00:01.000Z"}
+{"event":"on_tool_error","name":"Browse","error":"timeout after 15s","ts":"2026-10-29T16:00:16.000Z"}
+{"event":"on_chat_model_end","data":{"output":"Nothing indexed yet."},"ts":"2026-10-29T16:00:16.400Z"}
