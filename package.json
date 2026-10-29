@@ -1,10 +1,10 @@
 {
   "name": "@webywz/agent-trace",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Turn messy agent run logs into a readable timeline.",
   "type": "module",
   "bin": {
-    "agent-trace": "./dist/cli.js"
+    "agent-trace": "dist/cli.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -21,7 +21,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/chmod-cli.mjs",
     "test": "tsx --test test/*.test.ts",
     "dev": "tsx src/cli.ts",
     "prepublishOnly": "npm test && npm run build"

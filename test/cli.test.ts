@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { parseArgs } from "../src/args.js";
+import { parseArgs, UsageError } from "../src/args.js";
 import { fixturePath } from "./helpers.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -45,8 +46,56 @@ describe("parseArgs", () => {
     assert.equal(args.file, "-");
   });
 
+  it("accepts generic as a format", () => {
+    const args = parseArgs(["node", "agent-trace", "--format", "generic", "run.json"]);
+    assert.equal(args.format, "generic");
+  });
+
+  it("parses product flags", () => {
+    const args = parseArgs(["node", "agent-trace", "--demo", "--fail-on-error", "--stats"]);
+    assert.equal(args.demo, true);
+    assert.equal(args.failOnError, true);
+    assert.equal(args.stats, true);
+  });
+
   it("rejects unknown formats", () => {
-    assert.throws(() => parseArgs(["node", "agent-trace", "--format", "protobuf"]), /unknown format/);
+    assert.throws(
+      () => parseArgs(["node", "agent-trace", "--format", "protobuf"]),
+      (error: unknown) => {
+        assert.ok(error instanceof UsageError);
+        assert.match(error.message, /unknown format/);
+        assert.match(error.message, /generic/);
+        return true;
+      },
+    );
+  });
+
+  it("suggests a close flag", () => {
+    assert.throws(
+      () => parseArgs(["node", "agent-trace", "--formt", "jsonl"]),
+      (error: unknown) => {
+        assert.ok(error instanceof UsageError);
+        assert.match(error.message, /did you mean --format/);
+        return true;
+      },
+    );
+  });
+
+  it("rejects a file together with --demo", () => {
+    assert.throws(
+      () => parseArgs(["node", "agent-trace", "--demo", "run.jsonl"]),
+      /do not pass a file with --demo/,
+    );
+  });
+});
+
+describe("package", () => {
+  it("uses npm 11 canonical bin path", () => {
+    const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as {
+      bin: Record<string, string>;
+    };
+    assert.equal(pkg.bin["agent-trace"], "dist/cli.js");
+    assert.ok(!pkg.bin["agent-trace"]?.startsWith("./"));
   });
 });
 
@@ -87,11 +136,62 @@ describe("CLI", () => {
     assert.equal(code, 0);
     assert.match(stdout, /Usage:/);
     assert.match(stdout, /--spicy/);
+    assert.match(stdout, /--demo/);
+    assert.match(stdout, /--fail-on-error/);
+    assert.match(stdout, /--stats/);
+    assert.match(stdout, /generic/);
+    assert.match(stdout, /Exit codes:/);
   });
 
   it("fails on a missing file", async () => {
     const { code, stderr } = await run(["no-such-trace.jsonl"]);
-    assert.notEqual(code, 0);
-    assert.match(stderr, /agent-trace:/);
+    assert.equal(code, 1);
+    assert.match(stderr, /agent-trace: file not found: no-such-trace\.jsonl/);
+  });
+
+  it("exits 2 on a usage error and points at --help", async () => {
+    const { code, stderr } = await run(["--nope"]);
+    assert.equal(code, 2);
+    assert.match(stderr, /unknown option '--nope'/);
+    assert.match(stderr, /try 'agent-trace --help'/);
+  });
+
+  it("renders the bundled demo", async () => {
+    const { code, stdout, stderr } = await run(["--demo", "--no-color"]);
+    assert.equal(code, 0, stderr);
+    assert.match(stdout, /examples\/run\.jsonl/);
+    assert.match(stdout, /run_tests/);
+    assert.match(stdout, /1 failure/);
+  });
+
+  it("prints a one-line summary with --stats", async () => {
+    const { code, stdout } = await run(["--stats", "--no-color", fixturePath("examples/run.jsonl")]);
+    assert.equal(code, 0);
+    assert.match(stdout, /19 steps/);
+    assert.match(stdout, /7 tool calls/);
+    assert.match(stdout, /1 failure/);
+    assert.doesNotMatch(stdout, /read_file/);
+  });
+
+  it("exits 1 with --fail-on-error when the run had failures", async () => {
+    const { code, stdout, stderr } = await run([
+      "--fail-on-error",
+      "--stats",
+      "--no-color",
+      fixturePath("examples/run.jsonl"),
+    ]);
+    assert.equal(code, 1);
+    assert.match(stdout, /1 failure/);
+    assert.match(stderr, /1 failure \(--fail-on-error\)/);
+  });
+
+  it("exits 0 with --fail-on-error on a clean run", async () => {
+    const { code, stderr } = await run([
+      "--fail-on-error",
+      "--stats",
+      "--no-color",
+      fixturePath("examples/generic.json"),
+    ]);
+    assert.equal(code, 0, stderr);
   });
 });
