@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 import { readFileSync, realpathSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { helpText, parseArgs } from "./args.js";
+import { helpText, parseArgs, UsageError } from "./args.js";
 import { createPalette, shouldColor } from "./color.js";
 import { parseTrace } from "./parse/index.js";
-import { readInput } from "./read-input.js";
+import { readInput, wrapIoError } from "./read-input.js";
 import { spicyNarrative } from "./render/spicy.js";
-import { renderTimeline } from "./render/timeline.js";
+import { renderTimeline, summaryLine } from "./render/timeline.js";
 
 const VERSION = readVersion();
 
@@ -17,7 +18,7 @@ async function main(argv: string[]): Promise<number> {
     args = parseArgs(argv);
   } catch (error) {
     printErr(error);
-    return 1;
+    return exitCodeFor(error);
   }
 
   if (args.help) {
@@ -32,10 +33,10 @@ async function main(argv: string[]): Promise<number> {
   let text: string;
   let source: string;
   try {
-    ({ text, source } = await readInput(args.file));
+    ({ text, source } = args.demo ? await readDemo() : await readInput(args.file));
   } catch (error) {
     printErr(error);
-    return 1;
+    return exitCodeFor(error);
   }
 
   let trace;
@@ -56,16 +57,23 @@ async function main(argv: string[]): Promise<number> {
       ...(args.spicy ? { spicy: await spicyNarrative(trace) } : {}),
     };
     process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
-    return 0;
+    return failOnErrorCode(args.failOnError, trace.stats.failures);
   }
 
-  const timeline = renderTimeline(trace, {
-    color: args.color,
-    ascii: args.ascii,
-    width: args.width,
-    maxContent: args.maxContent,
-  });
-  process.stdout.write(timeline);
+  if (args.stats) {
+    process.stdout.write(`${summaryLine(trace)}\n`);
+    for (const warning of trace.warnings) {
+      process.stderr.write(`agent-trace: warn: ${warning}\n`);
+    }
+  } else {
+    const timeline = renderTimeline(trace, {
+      color: args.color,
+      ascii: args.ascii,
+      width: args.width,
+      maxContent: args.maxContent,
+    });
+    process.stdout.write(timeline);
+  }
 
   if (args.spicy) {
     const color = createPalette(shouldColor(args.color));
@@ -73,12 +81,44 @@ async function main(argv: string[]): Promise<number> {
     process.stdout.write(`\n${color.bold("spicy")}  ${narrative}\n`);
   }
 
-  return 0;
+  return failOnErrorCode(args.failOnError, trace.stats.failures);
+}
+
+function failOnErrorCode(enabled: boolean, failures: number): number {
+  if (!enabled || failures <= 0) return 0;
+  const noun = failures === 1 ? "failure" : "failures";
+  process.stderr.write(`agent-trace: ${failures} ${noun} (--fail-on-error)\n`);
+  return 1;
 }
 
 function printErr(error: unknown): void {
   const message = error instanceof Error ? error.message : String(error);
   process.stderr.write(`agent-trace: ${message}\n`);
+  if (error instanceof UsageError) {
+    process.stderr.write("try 'agent-trace --help'\n");
+  }
+}
+
+function exitCodeFor(error: unknown): number {
+  return error instanceof UsageError ? 2 : 1;
+}
+
+async function readDemo(): Promise<{ text: string; source: string }> {
+  const file = join(packageRoot(), "examples", "run.jsonl");
+  try {
+    const text = await readFile(file, "utf8");
+    return { text, source: "examples/run.jsonl" };
+  } catch (error) {
+    const wrapped = wrapIoError(error, file);
+    if (wrapped.message.startsWith("file not found")) {
+      throw new Error("bundled demo missing (expected examples/run.jsonl in the package)");
+    }
+    throw wrapped;
+  }
+}
+
+function packageRoot(): string {
+  return join(dirname(fileURLToPath(import.meta.url)), "..");
 }
 
 function isCliEntry(argvPath: string | undefined): boolean {
@@ -93,12 +133,11 @@ function isCliEntry(argvPath: string | undefined): boolean {
 
 function readVersion(): string {
   try {
-    const here = dirname(fileURLToPath(import.meta.url));
-    const raw = readFileSync(join(here, "..", "package.json"), "utf8");
+    const raw = readFileSync(join(packageRoot(), "package.json"), "utf8");
     const parsed = JSON.parse(raw) as { version?: string };
-    return parsed.version ?? "0.1.0";
+    return parsed.version ?? "0.1.1";
   } catch {
-    return "0.1.0";
+    return "0.1.1";
   }
 }
 

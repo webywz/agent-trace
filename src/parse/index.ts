@@ -9,7 +9,7 @@ export function parseTrace(input: string, options: ParseOptions = {}): Trace {
   const source = options.source;
   const trimmed = input.replace(/^\uFEFF/, "").trim();
   if (!trimmed) {
-    throw new Error("empty trace");
+    throw new Error("empty trace — pass a JSON/JSONL file, pipe stdin, or use --demo");
   }
 
   const format = options.format ?? "auto";
@@ -36,7 +36,9 @@ export function parseTrace(input: string, options: ParseOptions = {}): Trace {
   const jsonl = parseJsonl(trimmed, source);
   if (jsonl.steps.length) return jsonl;
 
-  throw new Error("could not detect trace format (tried openai, langchain, jsonl, generic)");
+  throw new Error(
+    "could not detect trace format (tried openai, langchain, jsonl, generic); pass --format to force a parser",
+  );
 }
 
 function parseAs(format: Exclude<TraceFormat, "auto">, text: string, source?: string, json?: unknown): Trace {
@@ -61,7 +63,7 @@ function decode(text: string, format: string): unknown {
   if (json !== undefined) return json;
   const { rows } = splitJsonl(text);
   if (rows.length) return rows;
-  throw new Error(`could not parse input as ${format}`);
+  throw new Error(`could not parse input as ${format} (not valid JSON/JSONL for that parser)`);
 }
 
 function detectJson(value: unknown): Exclude<TraceFormat, "auto"> {

@@ -22,7 +22,21 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - name: bin shebang and mode
+        run: |
+          test -x dist/cli.js
+          head -n1 dist/cli.js | grep -qx '#!/usr/bin/env node'
+          node -e "const p=require('./package.json'); if (p.bin['agent-trace'] !== 'dist/cli.js') process.exit(1)"
       - name: smoke CLI
         run: node dist/cli.js examples/run.jsonl --no-color
       - name: smoke --json
         run: node dist/cli.js examples/run.jsonl --json | node -e "JSON.parse(require('fs').readFileSync(0,'utf8'))"
+      - name: smoke --demo
+        run: node dist/cli.js --demo --no-color --stats
+      - name: smoke --fail-on-error
+        run: |
+          if node dist/cli.js --fail-on-error --stats --no-color examples/run.jsonl; then
+            echo "expected non-zero exit on a failing run" >&2
+            exit 1
+          fi
+          node dist/cli.js --fail-on-error --stats --no-color examples/generic.json
