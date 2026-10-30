@@ -36,3 +36,5 @@ export { redactText, redactValue, redactTrace, REDACTED } from "./redact.js";
 export { renderTap } from "./tap.js";
 export type { TapResult } from "./tap.js";
 export { parseDurationMs } from "./duration.js";
+
+export { renderSarif, formatSarif } from "./sarif.js";
