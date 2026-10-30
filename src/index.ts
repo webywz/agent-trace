@@ -12,6 +12,7 @@ export type {
 
 export { parseTrace } from "./parse/index.js";
 export { parseOpenAI } from "./parse/openai.js";
+export { parseAnthropic } from "./parse/anthropic.js";
 export { parseLangChain } from "./parse/langchain.js";
 export { parseJsonl } from "./parse/jsonl.js";
 export { parseGeneric } from "./parse/generic.js";

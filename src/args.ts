@@ -30,8 +30,8 @@ export class UsageError extends Error {
   }
 }
 
-const FORMATS = new Set<TraceFormat>(["auto", "openai", "langchain", "jsonl", "generic"]);
-const FORMAT_LIST = "auto|openai|langchain|jsonl|generic";
+const FORMATS = new Set<TraceFormat>(["auto", "openai", "anthropic", "langchain", "jsonl", "generic"]);
+const FORMAT_LIST = "auto|openai|anthropic|langchain|jsonl|generic";
 
 const FLAGS = [
   "-h",
@@ -288,6 +288,7 @@ Options:
 
 Formats:
   openai      Chat Completions, messages[], Responses API, streaming deltas
+  anthropic   Claude Messages API, content blocks (text / tool_use / tool_result)
   langchain   LangSmith run trees, callback events, AgentAction dumps
   jsonl       Role/tool/content events, Cursor-ish traces, generic objects
   generic     JSON array (or { events: [...] }) of { type, name, content, ts }
