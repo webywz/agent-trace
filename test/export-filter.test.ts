@@ -54,6 +54,7 @@ describe("stats.tools", () => {
     assert.ok(runTests);
     assert.equal(runTests?.failures, 1);
     const report = statsReport(trace);
+    assert.match(report, /format \w+/);
     assert.match(report, /19 steps/);
     assert.match(report, /tools:/);
     assert.match(report, /run_tests/);

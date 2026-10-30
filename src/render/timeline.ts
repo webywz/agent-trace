@@ -66,6 +66,7 @@ function metaLine(trace: Trace, dot: string): string {
 export function summaryLine(trace: Trace, dot = "·"): string {
   const { stats } = trace;
   const bits = [
+    `format ${trace.format}`,
     plural(stats.steps, "step"),
     plural(stats.toolCalls, "tool call"),
     plural(stats.failures, "failure"),
