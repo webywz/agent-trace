@@ -10,12 +10,15 @@ import { filterTrace } from "./filter.js";
 import { appendGithubSummary, resolveGithubSummaryPath } from "./github-summary.js";
 import { parseTrace } from "./parse/index.js";
 import { readInput, wrapIoError } from "./read-input.js";
+import { redactTrace } from "./redact.js";
 import { renderHtml } from "./render/html.js";
 import { renderMarkdown } from "./render/markdown.js";
 import { renderMermaid } from "./render/mermaid.js";
 import { spicyNarrative } from "./render/spicy.js";
 import { renderTimeline, statsReport } from "./render/timeline.js";
 import { renderGithubSummary } from "./summary-md.js";
+import { renderTap } from "./tap.js";
+import { formatDuration } from "./util.js";
 
 const VERSION = readVersion();
 
@@ -54,6 +57,9 @@ async function main(argv: string[]): Promise<number> {
       tools: args.tools,
       failures: args.failures,
     });
+    if (args.redact) {
+      trace = redactTrace(trace);
+    }
   } catch (error) {
     printErr(error);
     return 1;
@@ -71,6 +77,9 @@ async function main(argv: string[]): Promise<number> {
         tools: args.tools,
         failures: args.failures,
       });
+      if (args.redact) {
+        other = redactTrace(other);
+      }
       compareResult = compareTraces(trace, other);
       process.stdout.write(compareResult.report);
     } catch (error) {
@@ -78,6 +87,8 @@ async function main(argv: string[]): Promise<number> {
       return 1;
     }
   }
+
+  let tapExit: number | undefined;
 
   // Normal outputs skipped when --compare is the focus, unless an export flag is also set.
   if (!args.compare) {
@@ -104,6 +115,13 @@ async function main(argv: string[]): Promise<number> {
       }
     } else if (args.mermaid) {
       process.stdout.write(renderMermaid(trace, { maxContent: args.maxContent }));
+    } else if (args.tap) {
+      const tap = renderTap(trace);
+      process.stdout.write(tap.text);
+      tapExit = tap.exitCode;
+      if (args.stats) {
+        process.stderr.write(`${statsReport(trace)}\n`);
+      }
     } else if (args.stats) {
       process.stdout.write(`${statsReport(trace)}\n`);
       for (const warning of trace.warnings) {
@@ -119,12 +137,16 @@ async function main(argv: string[]): Promise<number> {
       process.stdout.write(timeline);
     }
 
-    if (args.spicy) {
+    if (args.spicy && !args.tap) {
       const color = createPalette(shouldColor(args.color));
       const narrative = await spicyNarrative(trace, { localOnly: !args.spicyLlm });
       process.stdout.write(`\n${color.bold("spicy")}  ${narrative}\n`);
+    } else if (args.spicy && args.tap) {
+      // Keep TAP stdout clean; spicy goes to stderr.
+      const narrative = await spicyNarrative(trace, { localOnly: !args.spicyLlm });
+      process.stderr.write(`spicy  ${narrative}\n`);
     }
-  } else if (args.json || args.markdown || args.html || args.mermaid || args.stats) {
+  } else if (args.json || args.markdown || args.html || args.mermaid || args.stats || args.tap) {
     // Allow exporting the primary alongside compare
     if (args.json) {
       process.stdout.write(
@@ -141,6 +163,13 @@ async function main(argv: string[]): Promise<number> {
       }
     } else if (args.mermaid) {
       process.stdout.write(renderMermaid(trace, { maxContent: args.maxContent }));
+    } else if (args.tap) {
+      const tap = renderTap(trace);
+      process.stdout.write(tap.text);
+      tapExit = tap.exitCode;
+      if (args.stats) {
+        process.stderr.write(`${statsReport(trace)}\n`);
+      }
     } else if (args.stats) {
       process.stdout.write(`${statsReport(trace)}\n`);
     }
@@ -160,7 +189,28 @@ async function main(argv: string[]): Promise<number> {
   if (compareResult) {
     return compareResult.equivalent ? 0 : 1;
   }
+
+  const overBudget = maxDurationCode(args.maxDurationMs, trace.stats.durationMs);
+  if (overBudget !== 0) return overBudget;
+
+  if (tapExit != null && tapExit !== 0) return tapExit;
+
   return failOnErrorCode(args.failOnError, trace.stats.failures);
+}
+
+function maxDurationCode(budget: number | undefined, actual: number | undefined): number {
+  if (budget == null) return 0;
+  if (actual == null) {
+    process.stderr.write(
+      `agent-trace: warn: --max-duration ${formatDuration(budget)} set but run has no measurable duration\n`,
+    );
+    return 0;
+  }
+  if (actual <= budget) return 0;
+  process.stderr.write(
+    `agent-trace: duration ${formatDuration(actual)} exceeds --max-duration ${formatDuration(budget)}\n`,
+  );
+  return 1;
 }
 
 function resolveSummaryTarget(flag: string | true | undefined): string | undefined {

@@ -171,6 +171,9 @@ describe("CLI", () => {
     assert.match(stdout, /--spicy-llm/);
     assert.match(stdout, /--demo/);
     assert.match(stdout, /--fail-on-error/);
+    assert.match(stdout, /--max-duration/);
+    assert.match(stdout, /--redact/);
+    assert.match(stdout, /--tap/);
     assert.match(stdout, /--stats/);
     assert.match(stdout, /--markdown/);
     assert.match(stdout, /--mermaid/);
@@ -283,6 +286,55 @@ describe("CLI", () => {
       "--stats",
       "--no-color",
       fixturePath("examples/generic.json"),
+    ]);
+    assert.equal(code, 0, stderr);
+  });
+
+  it("emits TAP and exits 1 on demo failures", async () => {
+    const { code, stdout, stderr } = await run(["--tap", "--demo"]);
+    assert.equal(code, 1, stderr);
+    assert.match(stdout, /^TAP version 13/m);
+    assert.match(stdout, /^not ok /m);
+  });
+
+  it("puts --stats on stderr with --tap", async () => {
+    const { code, stdout, stderr } = await run(["--tap", "--stats", "--demo"]);
+    assert.equal(code, 1);
+    assert.match(stdout, /^TAP version 13/m);
+    assert.match(stderr, /19 steps/);
+  });
+
+  it("redacts secrets in markdown export", async () => {
+    const input = JSON.stringify({
+      role: "assistant",
+      content: "key sk-abcdefghijklmnopqrstuvwxyz0123",
+    });
+    const { code, stdout } = await run(["--redact", "--markdown", "-"], input);
+    assert.equal(code, 0);
+    assert.doesNotMatch(stdout, /sk-abcdef/);
+    assert.match(stdout, /\[redacted\]/);
+  });
+
+  it("exits 1 when --max-duration is exceeded", async () => {
+    const { code, stdout, stderr } = await run([
+      "--max-duration",
+      "1ms",
+      "--stats",
+      "--no-color",
+      "--demo",
+    ]);
+    assert.equal(code, 1);
+    assert.match(stdout, /19 steps/);
+    assert.match(stderr, /exceeds --max-duration/);
+  });
+
+  it("passes a large --max-duration budget", async () => {
+    const { code, stderr } = await run([
+      "--max-duration",
+      "60m",
+      "--stats",
+      "--no-color",
+      "--demo",
     ]);
     assert.equal(code, 0, stderr);
   });
