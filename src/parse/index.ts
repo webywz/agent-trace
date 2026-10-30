@@ -3,6 +3,7 @@ import { tryJsonParse } from "../util.js";
 import { looksLikeGeneric, parseGeneric } from "./generic.js";
 import { looksLikeJsonl, parseJsonl, splitJsonl } from "./jsonl.js";
 import { looksLikeLangChain, parseLangChain } from "./langchain.js";
+import { looksLikeAnthropic, parseAnthropic } from "./anthropic.js";
 import { looksLikeOpenAI, parseOpenAI } from "./openai.js";
 
 export function parseTrace(input: string, options: ParseOptions = {}): Trace {
@@ -37,7 +38,7 @@ export function parseTrace(input: string, options: ParseOptions = {}): Trace {
   if (jsonl.steps.length) return jsonl;
 
   throw new Error(
-    "could not detect trace format (tried openai, langchain, jsonl, generic); pass --format to force a parser",
+    "could not detect trace format (tried openai, anthropic, langchain, jsonl, generic); pass --format to force a parser",
   );
 }
 
@@ -45,6 +46,8 @@ function parseAs(format: Exclude<TraceFormat, "auto">, text: string, source?: st
   switch (format) {
     case "openai":
       return parseOpenAI(json ?? decode(text, format), source);
+    case "anthropic":
+      return parseAnthropic(json ?? decode(text, format), source);
     case "langchain":
       return parseLangChain(json ?? decode(text, format), source);
     case "generic":
@@ -67,10 +70,12 @@ function decode(text: string, format: string): unknown {
 }
 
 function detectJson(value: unknown): Exclude<TraceFormat, "auto"> {
+  // Anthropic before OpenAI: both use role/content, but tool_use blocks are Claude-specific.
+  if (looksLikeAnthropic(value)) return "anthropic";
   if (looksLikeOpenAI(value)) return "openai";
   if (looksLikeLangChain(value)) return "langchain";
   if (looksLikeGeneric(value)) return "generic";
   return "generic";
 }
 
-export { parseGeneric, parseJsonl, parseLangChain, parseOpenAI };
+export { parseAnthropic, parseGeneric, parseJsonl, parseLangChain, parseOpenAI };

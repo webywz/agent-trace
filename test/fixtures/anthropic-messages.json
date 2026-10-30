@@ -1,0 +1,68 @@
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "What's the weather in Tokyo and book a table for 2?"
+    },
+    {
+      "role": "assistant",
+      "model": "claude-sonnet-4-20250514",
+      "content": [
+        { "type": "text", "text": "I'll check the weather, then look for a table." },
+        {
+          "type": "tool_use",
+          "id": "toolu_weather_1",
+          "name": "get_weather",
+          "input": { "city": "Tokyo", "units": "celsius" }
+        }
+      ],
+      "stop_reason": "tool_use"
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_weather_1",
+          "content": "{\"temp\":18,\"condition\":\"clear\"}"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_book_1",
+          "name": "book_table",
+          "input": { "city": "Tokyo", "party_size": 2 }
+        }
+      ],
+      "stop_reason": "tool_use"
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_book_1",
+          "content": "Booked: Ichiran Shibuya, 19:30"
+        }
+      ]
+    },
+    {
+      "id": "msg_final",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-sonnet-4-20250514",
+      "content": [
+        {
+          "type": "text",
+          "text": "Tokyo is clear at 18°C. Table for 2 at Ichiran Shibuya, 19:30."
+        }
+      ],
+      "stop_reason": "end_turn",
+      "usage": { "input_tokens": 420, "output_tokens": 64 }
+    }
+  ]
+}

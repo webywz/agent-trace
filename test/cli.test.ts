@@ -51,6 +51,11 @@ describe("parseArgs", () => {
     assert.equal(args.format, "generic");
   });
 
+  it("accepts anthropic as a format", () => {
+    const args = parseArgs(["node", "agent-trace", "--format", "anthropic", "run.json"]);
+    assert.equal(args.format, "anthropic");
+  });
+
   it("parses product flags", () => {
     const args = parseArgs(["node", "agent-trace", "--demo", "--fail-on-error", "--stats"]);
     assert.equal(args.demo, true);
@@ -221,6 +226,27 @@ describe("CLI", () => {
     assert.equal(code, 1);
     assert.match(stdout, /1 failure/);
     assert.match(stderr, /1 failure \(--fail-on-error\)/);
+  });
+
+
+  it("parses Anthropic dump with --format anthropic", async () => {
+    const { code, stdout, stderr } = await run([
+      "--format",
+      "anthropic",
+      "--json",
+      fixturePath("test/fixtures/anthropic-messages.json"),
+    ]);
+    assert.equal(code, 0, stderr);
+    const payload = JSON.parse(stdout) as {
+      format: string;
+      steps: { kind: string; name?: string }[];
+      stats: { toolCalls: number; tokensIn?: number };
+    };
+    assert.equal(payload.format, "anthropic");
+    assert.ok(payload.stats.toolCalls >= 2);
+    assert.ok(payload.steps.some((s) => s.kind === "tool_call" && s.name === "get_weather"));
+    assert.ok(payload.steps.some((s) => s.kind === "tool_result"));
+    assert.equal(payload.stats.tokensIn, 420);
   });
 
   it("exits 0 with --fail-on-error on a clean run", async () => {

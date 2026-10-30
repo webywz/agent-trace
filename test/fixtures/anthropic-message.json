@@ -1,0 +1,18 @@
+{
+  "id": "msg_01X",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-3-5-sonnet-20241022",
+  "content": [
+    { "type": "thinking", "thinking": "Need to list pods first." },
+    { "type": "text", "text": "Listing deployments." },
+    {
+      "type": "tool_use",
+      "id": "toolu_abc",
+      "name": "kubectl_get",
+      "input": { "kind": "deploy", "ns": "payments" }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "usage": { "input_tokens": 120, "output_tokens": 40 }
+}

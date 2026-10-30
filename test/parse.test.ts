@@ -90,6 +90,38 @@ describe("parseTrace auto-detect", () => {
     assert.ok(trace.warnings.some((w) => /line 2/.test(w)));
   });
 
+
+  it("parses Anthropic Messages with tool_use / tool_result blocks", () => {
+    const trace = parseTrace(fixture("test/fixtures/anthropic-messages.json"));
+    assert.equal(trace.format, "anthropic");
+    const calls = trace.steps.filter((s) => s.kind === "tool_call").map((s) => s.name);
+    assert.deepEqual(calls, ["get_weather", "book_table"]);
+    assert.ok(trace.steps.some((s) => s.kind === "tool_result" && s.toolCallId === "toolu_weather_1"));
+    assert.deepEqual(trace.steps.find((s) => s.name === "get_weather" && s.kind === "tool_call")?.args, {
+      city: "Tokyo",
+      units: "celsius",
+    });
+    assert.equal(trace.steps.at(-1)?.kind, "assistant");
+    assert.equal(trace.steps.at(-1)?.content?.includes("Ichiran"), true);
+    assert.equal(trace.stats.tokensIn, 420);
+    assert.equal(trace.stats.tokensOut, 64);
+  });
+
+  it("parses a single Anthropic Message object (SDK-style)", () => {
+    const trace = parseTrace(fixture("test/fixtures/anthropic-message.json"), { format: "anthropic" });
+    assert.equal(trace.format, "anthropic");
+    assert.ok(trace.steps.some((s) => s.kind === "thought" && s.content?.includes("pods")));
+    assert.equal(trace.steps.find((s) => s.kind === "tool_call")?.name, "kubectl_get");
+    assert.equal(trace.stats.tokensIn, 120);
+    assert.equal(trace.stats.tokensOut, 40);
+  });
+
+  it("forces --format anthropic", () => {
+    const trace = parseTrace(fixture("test/fixtures/anthropic-messages.json"), { format: "anthropic" });
+    assert.equal(trace.format, "anthropic");
+    assert.ok(trace.stats.toolCalls >= 2);
+  });
+
   it("honors --format even when sniffing would disagree", () => {
     const trace = parseTrace(fixture("examples/generic.json"), { format: "generic" });
     assert.equal(trace.format, "generic");

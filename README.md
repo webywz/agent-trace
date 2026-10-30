@@ -2,7 +2,7 @@
 
 Turn messy agent run logs into a readable timeline.
 
-OpenAI tool-call dumps, LangChain / LangSmith trees, JSONL event streams, Cursor-ish traces — all of them are painful to skim. `agent-trace` is an offline CLI that normalizes those shapes into a numbered timeline: thoughts, tools, results, errors, durations, and a one-line autopsy.
+OpenAI tool-call dumps, Anthropic / Claude Messages, LangChain / LangSmith trees, JSONL event streams, Cursor-ish traces — all of them are painful to skim. `agent-trace` is an offline CLI that normalizes those shapes into a numbered timeline: thoughts, tools, results, errors, durations, and a one-line autopsy.
 
 Filter by kind or tool, export Markdown / Mermaid for PRs, and get a per-tool breakdown in `--stats`. No API key. No network. Pipe a dump, get a story.
 
@@ -62,7 +62,7 @@ cat run.jsonl | npx @webywz/agent-trace
 ```bash
 agent-trace --demo
 agent-trace run.jsonl
-agent-trace --format auto|openai|langchain|jsonl|generic run.jsonl
+agent-trace --format auto|openai|anthropic|langchain|jsonl|generic run.jsonl
 agent-trace --json run.jsonl | jq .stats
 agent-trace --stats run.jsonl
 agent-trace --only tool,error --demo
@@ -76,7 +76,7 @@ cat run.jsonl | agent-trace
 
 | Flag | What it does |
 | --- | --- |
-| `-f, --format` | `auto` (default), `openai`, `langchain`, `jsonl`, `generic` |
+| `-f, --format` | `auto` (default), `openai`, `anthropic`, `langchain`, `jsonl`, `generic` |
 | `-j, --json` | Normalized trace as JSON (steps, stats, warnings) |
 | `--stats` | Summary + per-tool breakdown (good for CI logs) |
 | `--markdown`, `--md` | GitHub-friendly Markdown report (table + tool stats) |
@@ -121,6 +121,14 @@ agent-trace --failures --mermaid traces/last-run.jsonl
 
 **OpenAI** — `chat.completion` objects, `messages[]` with `tool_calls` / `role: tool`, Responses API `output[]`, and streamed JSONL chunks with `delta`.
 
+**Anthropic** — Claude Messages API: `messages[]` (or a single `type: "message"` object) where `content` is a string or content blocks (`text`, `tool_use`, `tool_result`, `thinking`). `tool_use` → tool steps, `tool_result` → results.
+
+```bash
+agent-trace --format anthropic dump.json
+# or auto-detect when content blocks include tool_use / tool_result
+agent-trace test/fixtures/anthropic-messages.json
+```
+
 **LangChain** — LangSmith run trees (`run_type` + `child_runs`), callback events (`on_tool_start`, `on_tool_end`, `on_chain_error`, …), `AgentAction` dumps.
 
 **JSONL** — one event per line: `role` / `type` / `tool` / `content` / `ts`. Cursor-ish traces included. Bad lines are skipped and reported.
@@ -151,7 +159,7 @@ process.stdout.write(renderMarkdown(trace));
 process.stdout.write(renderMermaid(trace));
 ```
 
-`Trace.stats` always includes step / tool / failure counts, plus duration and token in/out when the log carries timestamps or usage. From 0.2.0 it also includes `stats.tools[]` — per-tool calls, failures, and duration.
+`Trace.stats` always includes step / tool / failure counts, plus duration and token in/out when the log carries timestamps or usage. From 0.2.0 it also includes `stats.tools[]` — per-tool calls, failures, and duration. 0.3.0 adds first-class Anthropic / Claude Messages parsing.
 
 ## Examples
 
@@ -161,6 +169,7 @@ Same repo, ready to paste. Walkthrough: [`examples/README.md`](examples/README.m
 agent-trace --demo
 agent-trace examples/run.jsonl
 agent-trace examples/openai.json
+agent-trace --format anthropic test/fixtures/anthropic-messages.json
 agent-trace examples/langchain.json
 agent-trace --json examples/generic.json
 agent-trace --only tool,error --demo
