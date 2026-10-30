@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { localSpicy, parseTrace, renderTimeline } from "../src/index.js";
+import { localSpicy, parseTrace, renderTimeline, spicyNarrative } from "../src/index.js";
 import { fixture } from "./helpers.ts";
 
 describe("renderTimeline", () => {
@@ -57,5 +57,20 @@ describe("localSpicy", () => {
     const text = localSpicy(trace);
     assert.match(text, /Clean run|Quietly competent|face-plant/i);
     assert.match(text, /get_error_budget/);
+  });
+});
+
+describe("spicyNarrative", () => {
+  it("defaults to localOnly even when API keys exist", async () => {
+    const prev = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "sk-test-should-not-be-used";
+    try {
+      const trace = parseTrace(fixture("examples/run.jsonl"));
+      const text = await spicyNarrative(trace);
+      assert.equal(text, localSpicy(trace));
+    } finally {
+      if (prev === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = prev;
+    }
   });
 });

@@ -6,6 +6,7 @@ export interface CliArgs {
   format: TraceFormat;
   json: boolean;
   spicy: boolean;
+  spicyLlm: boolean;
   color?: boolean;
   ascii: boolean;
   width?: number;
@@ -41,6 +42,7 @@ const FLAGS = [
   "--json",
   "-j",
   "--spicy",
+  "--spicy-llm",
   "--ascii",
   "--no-color",
   "--color",
@@ -64,6 +66,7 @@ export function parseArgs(argv: string[]): CliArgs {
     format: "auto",
     json: false,
     spicy: false,
+    spicyLlm: false,
     ascii: false,
     help: false,
     version: false,
@@ -104,6 +107,11 @@ export function parseArgs(argv: string[]): CliArgs {
     }
     if (token === "--spicy") {
       args.spicy = true;
+      continue;
+    }
+    if (token === "--spicy-llm") {
+      args.spicy = true;
+      args.spicyLlm = true;
       continue;
     }
     if (token === "--ascii") {
@@ -275,7 +283,8 @@ Options:
       --only <kinds>     Keep kinds: user,tool,result,error,assistant,…
       --tool <name>      Keep steps for this tool (repeatable / comma list)
       --failures         Keep only failures (+ paired tool calls)
-      --spicy            Narrative recap (offline, or LLM if API key set)
+      --spicy            Local narrative recap (no network)
+      --spicy-llm        Narrative via OpenAI/Anthropic (needs API key)
       --fail-on-error    Exit 1 if the run had failures
       --demo             Render bundled examples/run.jsonl
       --ascii            ASCII-only timeline

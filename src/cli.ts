@@ -62,7 +62,9 @@ async function main(argv: string[]): Promise<number> {
       stats: trace.stats,
       warnings: trace.warnings,
       steps: trace.steps,
-      ...(args.spicy ? { spicy: await spicyNarrative(trace) } : {}),
+      ...(args.spicy
+        ? { spicy: await spicyNarrative(trace, { localOnly: !args.spicyLlm }) }
+        : {}),
     };
     process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
     return failOnErrorCode(args.failOnError, trace.stats.failures);
@@ -95,7 +97,7 @@ async function main(argv: string[]): Promise<number> {
 
   if (args.spicy) {
     const color = createPalette(shouldColor(args.color));
-    const narrative = await spicyNarrative(trace);
+    const narrative = await spicyNarrative(trace, { localOnly: !args.spicyLlm });
     process.stdout.write(`\n${color.bold("spicy")}  ${narrative}\n`);
   }
 
@@ -153,9 +155,9 @@ function readVersion(): string {
   try {
     const raw = readFileSync(join(packageRoot(), "package.json"), "utf8");
     const parsed = JSON.parse(raw) as { version?: string };
-    return parsed.version ?? "0.2.1";
+    return parsed.version ?? "0.2.2";
   } catch {
-    return "0.2.1";
+    return "0.2.2";
   }
 }
 

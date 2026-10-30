@@ -65,7 +65,7 @@ export interface RenderOptions {
 }
 
 export interface SpicyOptions {
-  /** Skip network even if keys exist. */
+  /** Offline by default. Pass `false` to allow OpenAI/Anthropic when keys exist. */
   localOnly?: boolean;
   timeoutMs?: number;
   model?: string;

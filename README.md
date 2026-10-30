@@ -4,7 +4,7 @@ Turn messy agent run logs into a readable timeline.
 
 OpenAI tool-call dumps, Anthropic / Claude Messages, LangChain / LangSmith trees, JSONL event streams, Cursor-ish traces — all of them are painful to skim. `agent-trace` is an offline CLI that normalizes those shapes into a numbered timeline: thoughts, tools, results, errors, durations, and a one-line autopsy.
 
-Filter by kind or tool, export Markdown / Mermaid for PRs, and get a per-tool breakdown in `--stats`. No API key. No network. Pipe a dump, get a story.
+Filter by kind or tool, export Markdown / Mermaid for PRs, and get a per-tool breakdown in `--stats`. Offline by default — no API key, no network. Pipe a dump, get a story. (Optional `--spicy-llm` can call a provider when you opt in.)
 
 ## 30-second demo
 
@@ -84,7 +84,8 @@ cat run.jsonl | agent-trace
 | `--only <kinds>` | Keep kinds: `user`, `tool`, `result`, `error`, `assistant`, … |
 | `--tool <name>` | Keep steps for this tool (repeatable / comma list) |
 | `--failures` | Keep only failures and their paired tool calls/results |
-| `--spicy` | A short narrative recap. Offline by default; uses `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` when set |
+| `--spicy` | Local narrative recap (no network) |
+| `--spicy-llm` | Opt-in LLM narrative via `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` |
 | `--fail-on-error` | Exit `1` if the run had tool/step failures |
 | `--demo` | Render the bundled sample (`examples/run.jsonl`) |
 | `--ascii` | ASCII-only timeline (no box drawing) |
@@ -94,7 +95,7 @@ cat run.jsonl | agent-trace
 
 Use **one** of `--json`, `--stats`, `--markdown`, `--mermaid` (timeline is the default).
 
-`--spicy` never blocks the timeline. If the key is missing, the recap is local. If the LLM call fails, you still get the local recap.
+`--spicy` is always local. `--spicy-llm` never blocks the timeline: if the key is missing or the LLM call fails, you still get the local recap.
 
 ### Exit codes
 
@@ -157,6 +158,8 @@ const trace = filterTrace(parseTrace(text, { format: "auto", source: "run.jsonl"
 process.stdout.write(renderTimeline(trace, { color: false }));
 process.stdout.write(renderMarkdown(trace));
 process.stdout.write(renderMermaid(trace));
+// Offline narrative (default). Pass { localOnly: false } to opt into an LLM call.
+console.log(await spicyNarrative(trace));
 ```
 
 `Trace.stats` always includes step / tool / failure counts, plus duration and token in/out when the log carries timestamps or usage. From 0.2.0 it also includes `stats.tools[]` — per-tool calls, failures, and duration. 0.3.0 adds first-class Anthropic / Claude Messages parsing.
