@@ -21,6 +21,13 @@ export interface CliArgs {
   only?: StepKind[];
   tools?: string[];
   failures: boolean;
+  /** Other trace file for structural compare. */
+  compare?: string;
+  /**
+   * GitHub step summary: `true` = auto path (env or ./github-step-summary.md),
+   * string = explicit path. Undefined = only write when GITHUB_STEP_SUMMARY is set.
+   */
+  githubSummary?: string | true;
 }
 
 export class UsageError extends Error {
@@ -59,6 +66,8 @@ const FLAGS = [
   "--only",
   "--tool",
   "--failures",
+  "--compare",
+  "--github-summary",
 ];
 
 export function parseArgs(argv: string[]): CliArgs {
@@ -150,6 +159,17 @@ export function parseArgs(argv: string[]): CliArgs {
       args.failures = true;
       continue;
     }
+    if (token === "--github-summary") {
+      // Bare flag: auto path. Peek next token if it looks like a path.
+      const next = rest[i + 1];
+      if (next && !next.startsWith("-")) {
+        args.githubSummary = next;
+        i += 1;
+      } else {
+        args.githubSummary = true;
+      }
+      continue;
+    }
 
     const eq = token.indexOf("=");
     const [flag, inline] = eq === -1 ? [token, undefined] : [token.slice(0, eq), token.slice(eq + 1)];
@@ -193,6 +213,19 @@ export function parseArgs(argv: string[]): CliArgs {
       } catch (error) {
         throw new UsageError(error instanceof Error ? error.message : String(error));
       }
+      continue;
+    }
+    if (flag === "--compare") {
+      const value = inline ?? rest[++i];
+      if (!value || value.startsWith("-")) {
+        throw new UsageError("--compare expects a path to another trace file");
+      }
+      args.compare = value;
+      continue;
+    }
+    if (flag === "--github-summary") {
+      // --github-summary=path form (bare handled above)
+      args.githubSummary = inline === undefined || inline === "" ? true : inline;
       continue;
     }
     if (token.startsWith("-")) {
@@ -286,6 +319,8 @@ Options:
       --spicy            Local narrative recap (no network)
       --spicy-llm        Narrative via OpenAI/Anthropic (needs API key)
       --fail-on-error    Exit 1 if the run had failures
+      --compare <file>   Diff tool sequence vs another trace (exit 1 on differ)
+      --github-summary [path]  Append Markdown to GITHUB_STEP_SUMMARY or path
       --demo             Render bundled examples/run.jsonl
       --ascii            ASCII-only timeline
       --color            Force ANSI colors
@@ -304,8 +339,8 @@ Formats:
   auto        Sniff the file, then fall through the parsers above
 
 Exit codes:
-  0  ok
-  1  I/O or parse error; or --fail-on-error when the trace has failures
+  0  ok (or --compare with equivalent structure)
+  1  I/O or parse error; --fail-on-error with failures; --compare differs
   2  usage error (bad flag, missing file)
 
 Examples:
@@ -320,5 +355,7 @@ Examples:
   agent-trace --markdown --demo > report.md
   agent-trace --mermaid --demo
   agent-trace --fail-on-error --stats traces/ci.jsonl
+  agent-trace --compare baseline.jsonl traces/ci.jsonl
+  agent-trace --github-summary --demo
 `;
 }
