@@ -153,9 +153,9 @@ function readVersion(): string {
   try {
     const raw = readFileSync(join(packageRoot(), "package.json"), "utf8");
     const parsed = JSON.parse(raw) as { version?: string };
-    return parsed.version ?? "0.2.0";
+    return parsed.version ?? "0.2.1";
   } catch {
-    return "0.2.0";
+    return "0.2.1";
   }
 }
 
