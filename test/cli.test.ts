@@ -139,6 +139,10 @@ describe("CLI", () => {
     assert.match(stdout, /--demo/);
     assert.match(stdout, /--fail-on-error/);
     assert.match(stdout, /--stats/);
+    assert.match(stdout, /--markdown/);
+    assert.match(stdout, /--mermaid/);
+    assert.match(stdout, /--only/);
+    assert.match(stdout, /--failures/);
     assert.match(stdout, /generic/);
     assert.match(stdout, /Exit codes:/);
   });
@@ -164,13 +168,47 @@ describe("CLI", () => {
     assert.match(stdout, /1 failure/);
   });
 
-  it("prints a one-line summary with --stats", async () => {
+  it("prints a summary with per-tool breakdown via --stats", async () => {
     const { code, stdout } = await run(["--stats", "--no-color", fixturePath("examples/run.jsonl")]);
     assert.equal(code, 0);
     assert.match(stdout, /19 steps/);
     assert.match(stdout, /7 tool calls/);
     assert.match(stdout, /1 failure/);
-    assert.doesNotMatch(stdout, /read_file/);
+    assert.match(stdout, /tools:/);
+    assert.match(stdout, /run_tests/);
+  });
+
+  it("exports markdown", async () => {
+    const { code, stdout } = await run(["--markdown", "--no-color", "--demo"]);
+    assert.equal(code, 0);
+    assert.match(stdout, /# agent-trace/);
+    assert.match(stdout, /\| # \| Kind \|/);
+    assert.match(stdout, /run_tests/);
+  });
+
+  it("exports mermaid", async () => {
+    const { code, stdout } = await run(["--mermaid", "--demo"]);
+    assert.equal(code, 0);
+    assert.match(stdout, /flowchart TD/);
+    assert.match(stdout, /S1/);
+  });
+
+  it("filters with --only and --failures", async () => {
+    const only = await run(["--only", "error", "--no-color", "--demo"]);
+    assert.equal(only.code, 0);
+    assert.match(only.stdout, /error/);
+    assert.doesNotMatch(only.stdout, /  user/);
+
+    const fails = await run(["--failures", "--stats", "--no-color", "--demo"]);
+    assert.equal(fails.code, 0);
+    assert.match(fails.stdout, /failure/);
+    assert.match(fails.stdout, /run_tests/);
+  });
+
+  it("rejects combining output modes", async () => {
+    const { code, stderr } = await run(["--json", "--stats", "--demo"]);
+    assert.equal(code, 2);
+    assert.match(stderr, /only one of/);
   });
 
   it("exits 1 with --fail-on-error when the run had failures", async () => {

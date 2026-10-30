@@ -1,4 +1,5 @@
-import type { TraceFormat } from "./types.js";
+import type { StepKind, TraceFormat } from "./types.js";
+import { parseKindList, parseToolList } from "./filter.js";
 
 export interface CliArgs {
   file?: string;
@@ -14,6 +15,11 @@ export interface CliArgs {
   demo: boolean;
   failOnError: boolean;
   stats: boolean;
+  markdown: boolean;
+  mermaid: boolean;
+  only?: StepKind[];
+  tools?: string[];
+  failures: boolean;
 }
 
 export class UsageError extends Error {
@@ -45,6 +51,12 @@ const FLAGS = [
   "--demo",
   "--fail-on-error",
   "--stats",
+  "--markdown",
+  "--md",
+  "--mermaid",
+  "--only",
+  "--tool",
+  "--failures",
 ];
 
 export function parseArgs(argv: string[]): CliArgs {
@@ -58,6 +70,9 @@ export function parseArgs(argv: string[]): CliArgs {
     demo: false,
     failOnError: false,
     stats: false,
+    markdown: false,
+    mermaid: false,
+    failures: false,
   };
 
   const rest = argv.slice(2);
@@ -115,6 +130,18 @@ export function parseArgs(argv: string[]): CliArgs {
       args.stats = true;
       continue;
     }
+    if (token === "--markdown" || token === "--md") {
+      args.markdown = true;
+      continue;
+    }
+    if (token === "--mermaid") {
+      args.mermaid = true;
+      continue;
+    }
+    if (token === "--failures") {
+      args.failures = true;
+      continue;
+    }
 
     const eq = token.indexOf("=");
     const [flag, inline] = eq === -1 ? [token, undefined] : [token.slice(0, eq), token.slice(eq + 1)];
@@ -135,6 +162,31 @@ export function parseArgs(argv: string[]): CliArgs {
       args.maxContent = toInt(inline ?? rest[++i], "--max-content");
       continue;
     }
+    if (flag === "--only") {
+      const value = inline ?? rest[++i];
+      if (!value || value.startsWith("-")) {
+        throw new UsageError("--only expects a comma-separated kind list");
+      }
+      try {
+        args.only = parseKindList(value);
+      } catch (error) {
+        throw new UsageError(error instanceof Error ? error.message : String(error));
+      }
+      continue;
+    }
+    if (flag === "--tool") {
+      const value = inline ?? rest[++i];
+      if (!value || value.startsWith("-")) {
+        throw new UsageError("--tool expects a tool name (or comma-separated list)");
+      }
+      try {
+        const next = parseToolList(value);
+        args.tools = [...(args.tools ?? []), ...next];
+      } catch (error) {
+        throw new UsageError(error instanceof Error ? error.message : String(error));
+      }
+      continue;
+    }
     if (token.startsWith("-")) {
       const hint = suggestFlag(token);
       throw new UsageError(
@@ -149,6 +201,11 @@ export function parseArgs(argv: string[]): CliArgs {
 
   if (args.demo && args.file) {
     throw new UsageError("do not pass a file with --demo (the bundled sample is used)");
+  }
+
+  const outputs = [args.json, args.stats, args.markdown, args.mermaid].filter(Boolean).length;
+  if (outputs > 1) {
+    throw new UsageError("use only one of --json, --stats, --markdown, --mermaid");
   }
 
   return args;
@@ -212,7 +269,12 @@ Usage:
 Options:
   -f, --format <fmt>     ${FORMAT_LIST} (default: auto)
   -j, --json             Normalized trace as JSON
-      --stats            One-line summary only
+      --stats            Summary + per-tool breakdown
+      --markdown, --md   GitHub-friendly Markdown report
+      --mermaid          Mermaid flowchart (paste into a \`\`\`mermaid fence)
+      --only <kinds>     Keep kinds: user,tool,result,error,assistant,…
+      --tool <name>      Keep steps for this tool (repeatable / comma list)
+      --failures         Keep only failures (+ paired tool calls)
       --spicy            Narrative recap (offline, or LLM if API key set)
       --fail-on-error    Exit 1 if the run had failures
       --demo             Render bundled examples/run.jsonl
@@ -241,6 +303,12 @@ Examples:
   agent-trace run.jsonl
   agent-trace --format openai dump.json
   agent-trace --json run.jsonl | jq .stats
+  agent-trace --stats --demo
+  agent-trace --only tool,error --demo
+  agent-trace --failures --demo
+  agent-trace --tool run_tests --demo
+  agent-trace --markdown --demo > report.md
+  agent-trace --mermaid --demo
   agent-trace --fail-on-error --stats traces/ci.jsonl
 `;
 }

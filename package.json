@@ -1,7 +1,7 @@
 {
   "name": "@webywz/agent-trace",
-  "version": "0.1.1",
-  "description": "Turn messy agent run logs into a readable timeline.",
+  "version": "0.2.0",
+  "description": "Turn messy agent run logs into a readable timeline \u2014 filter, stats, Markdown & Mermaid export.",
   "type": "module",
   "bin": {
     "agent-trace": "dist/cli.js"

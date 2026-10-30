@@ -1,4 +1,4 @@
-import type { TraceStats, TraceStep } from "./types.js";
+import type { ToolStat, TraceStats, TraceStep } from "./types.js";
 import { estimateTokens, timestampMs } from "./util.js";
 
 export function computeStats(steps: TraceStep[]): TraceStats {
@@ -9,6 +9,7 @@ export function computeStats(steps: TraceStep[]): TraceStats {
   let hasTokenIn = false;
   let hasTokenOut = false;
   const times: number[] = [];
+  const byTool = new Map<string, ToolStat>();
 
   const explicitIn = steps.some((step) => step.tokensIn != null);
   const explicitOut = steps.some((step) => step.tokensOut != null);
@@ -38,10 +39,40 @@ export function computeStats(steps: TraceStep[]): TraceStats {
     }
     const ms = timestampMs(step.ts);
     if (ms != null) times.push(ms);
+
+    if (step.name && (step.kind === "tool_call" || step.kind === "tool_result" || step.kind === "error")) {
+      const key = step.name;
+      let entry = byTool.get(key);
+      if (!entry) {
+        entry = { name: key, calls: 0, failures: 0 };
+        byTool.set(key, entry);
+      }
+      if (step.kind === "tool_call") entry.calls += 1;
+      if (step.kind === "error" || step.error) entry.failures += 1;
+      if (step.durationMs != null && step.kind === "tool_call") {
+        entry.durationMs = (entry.durationMs ?? 0) + step.durationMs;
+      }
+    }
+  }
+
+  // Attribute durations from adjacent timestamps when tool_call lacks durationMs
+  for (let i = 0; i < steps.length; i += 1) {
+    const step = steps[i];
+    if (!step || step.kind !== "tool_call" || !step.name || step.durationMs != null) continue;
+    const entry = byTool.get(step.name);
+    if (!entry) continue;
+    const a = timestampMs(step.ts);
+    const b = timestampMs(steps[i + 1]?.ts);
+    if (a == null || b == null || b < a) continue;
+    entry.durationMs = (entry.durationMs ?? 0) + (b - a);
   }
 
   const durationMs =
     times.length >= 2 ? Math.max(0, Math.max(...times) - Math.min(...times)) : undefined;
+
+  const tools = [...byTool.values()]
+    .filter((tool) => tool.calls > 0 || tool.failures > 0)
+    .sort((a, b) => (b.durationMs ?? 0) - (a.durationMs ?? 0) || b.calls - a.calls || a.name.localeCompare(b.name));
 
   return {
     steps: steps.length,
@@ -50,6 +81,7 @@ export function computeStats(steps: TraceStep[]): TraceStats {
     tokensIn: hasTokenIn ? tokensIn : undefined,
     tokensOut: hasTokenOut ? tokensOut : undefined,
     durationMs,
+    tools: tools.length ? tools : undefined,
   };
 }
 

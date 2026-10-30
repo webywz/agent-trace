@@ -5,10 +5,13 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { helpText, parseArgs, UsageError } from "./args.js";
 import { createPalette, shouldColor } from "./color.js";
+import { filterTrace } from "./filter.js";
 import { parseTrace } from "./parse/index.js";
 import { readInput, wrapIoError } from "./read-input.js";
+import { renderMarkdown } from "./render/markdown.js";
+import { renderMermaid } from "./render/mermaid.js";
 import { spicyNarrative } from "./render/spicy.js";
-import { renderTimeline, summaryLine } from "./render/timeline.js";
+import { renderTimeline, statsReport } from "./render/timeline.js";
 
 const VERSION = readVersion();
 
@@ -42,6 +45,11 @@ async function main(argv: string[]): Promise<number> {
   let trace;
   try {
     trace = parseTrace(text, { format: args.format, source });
+    trace = filterTrace(trace, {
+      only: args.only,
+      tools: args.tools,
+      failures: args.failures,
+    });
   } catch (error) {
     printErr(error);
     return 1;
@@ -60,8 +68,18 @@ async function main(argv: string[]): Promise<number> {
     return failOnErrorCode(args.failOnError, trace.stats.failures);
   }
 
+  if (args.markdown) {
+    process.stdout.write(renderMarkdown(trace, { maxContent: args.maxContent }));
+    return failOnErrorCode(args.failOnError, trace.stats.failures);
+  }
+
+  if (args.mermaid) {
+    process.stdout.write(renderMermaid(trace, { maxContent: args.maxContent }));
+    return failOnErrorCode(args.failOnError, trace.stats.failures);
+  }
+
   if (args.stats) {
-    process.stdout.write(`${summaryLine(trace)}\n`);
+    process.stdout.write(`${statsReport(trace)}\n`);
     for (const warning of trace.warnings) {
       process.stderr.write(`agent-trace: warn: ${warning}\n`);
     }
@@ -135,9 +153,9 @@ function readVersion(): string {
   try {
     const raw = readFileSync(join(packageRoot(), "package.json"), "utf8");
     const parsed = JSON.parse(raw) as { version?: string };
-    return parsed.version ?? "0.1.1";
+    return parsed.version ?? "0.2.0";
   } catch {
-    return "0.1.1";
+    return "0.2.0";
   }
 }
 
