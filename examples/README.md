@@ -29,11 +29,15 @@ This is the fixture `--demo` renders.
 | `openai.json` | Chat Completions `tool_calls` | Dump a `chat.completion` object as-is |
 | `langchain.json` | LangSmith run tree (`child_runs`) | Flatten a nested executor trace |
 | `generic.json` | `{ type, name, content, ts }[]` | Lowest-common-denominator if you emit your own log |
+| `claude-code.jsonl` | Claude Code stream-json | Headless `claude` CLI dumps |
+| `codex.jsonl` | Codex CLI `{ type, payload }` | Headless Codex JSONL |
 
 ```bash
 agent-trace examples/openai.json
 agent-trace examples/langchain.json
 agent-trace --json examples/generic.json
+agent-trace examples/claude-code.jsonl
+agent-trace --format codex examples/codex.jsonl
 ```
 
 Pipe your own dump:

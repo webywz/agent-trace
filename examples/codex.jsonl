@@ -1,0 +1,6 @@
+{"timestamp":"2026-10-30T04:00:00.000Z","type":"task_started","payload":{"prompt":"Find the package version and print it."}}
+{"timestamp":"2026-10-30T04:00:00.200Z","type":"agent_reasoning","payload":{"text":"Read package.json for the version field."}}
+{"timestamp":"2026-10-30T04:00:00.400Z","type":"function_call","payload":{"name":"read_file","arguments":{"path":"package.json"},"call_id":"call_1"}}
+{"timestamp":"2026-10-30T04:00:00.550Z","type":"function_call_output","payload":{"call_id":"call_1","output":"{\"name\":\"@webywz/agent-trace\",\"version\":\"0.6.0\"}"}}
+{"timestamp":"2026-10-30T04:00:00.700Z","type":"agent_message","payload":{"message":"The package version is 0.6.0."}}
+{"timestamp":"2026-10-30T04:00:00.800Z","type":"task_complete","payload":{"result":"0.6.0"}}

@@ -2,6 +2,8 @@ import type { Trace, TraceStep } from "../types.js";
 import { computeStats } from "../stats.js";
 import { isRecord, tryJsonParse } from "../util.js";
 import { normalizeEvent, reindex } from "./event.js";
+import { looksLikeClaudeCode, parseClaudeCode } from "./claude-code.js";
+import { looksLikeCodex, parseCodex } from "./codex.js";
 import { looksLikeLangChain, parseLangChain } from "./langchain.js";
 import { looksLikeOpenAI, parseOpenAI } from "./openai.js";
 
@@ -35,6 +37,16 @@ export function parseJsonl(text: string, source?: string): Trace {
     return trace;
   }
 
+  if (looksLikeClaudeCode(rows)) {
+    const nested = parseClaudeCode(rows, source);
+    nested.warnings = [...warnings, ...nested.warnings];
+    return nested;
+  }
+  if (looksLikeCodex(rows)) {
+    const nested = parseCodex(rows, source);
+    nested.warnings = [...warnings, ...nested.warnings];
+    return nested;
+  }
   if (looksLikeOpenAI(rows) && rows.some((row) => isRecord(row) && (row.delta != null || row.choices != null))) {
     const nested = parseOpenAI(rows, source);
     nested.format = "jsonl";
