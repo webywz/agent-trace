@@ -38,3 +38,5 @@ export type { TapResult } from "./tap.js";
 export { parseDurationMs } from "./duration.js";
 
 export { renderSarif, formatSarif } from "./sarif.js";
+export { formatJUnit } from "./junit.js";
+export { parseOllama } from "./parse/ollama.js";

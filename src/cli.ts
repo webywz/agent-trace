@@ -18,6 +18,7 @@ import { spicyNarrative } from "./render/spicy.js";
 import { renderTimeline, statsReport } from "./render/timeline.js";
 import { renderGithubSummary } from "./summary-md.js";
 import { formatSarif } from "./sarif.js";
+import { formatJUnit } from "./junit.js";
 import { renderTap } from "./tap.js";
 import { formatDuration } from "./util.js";
 
@@ -193,6 +194,16 @@ async function main(argv: string[]): Promise<number> {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       process.stderr.write(`agent-trace: could not write sarif: ${message}\n`);
+      return 1;
+    }
+  }
+
+  if (args.junit) {
+    try {
+      writeFileSync(args.junit, formatJUnit(trace), "utf8");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      process.stderr.write(`agent-trace: could not write junit: ${message}\n`);
       return 1;
     }
   }
