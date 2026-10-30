@@ -26,6 +26,13 @@ export interface TraceStep {
   toolCallId?: string;
 }
 
+export interface ToolStat {
+  name: string;
+  calls: number;
+  failures: number;
+  durationMs?: number;
+}
+
 export interface TraceStats {
   steps: number;
   toolCalls: number;
@@ -33,6 +40,8 @@ export interface TraceStats {
   tokensIn?: number;
   tokensOut?: number;
   durationMs?: number;
+  /** Per-tool breakdown (calls, failures, total duration). Present when any named tool ran. */
+  tools?: ToolStat[];
 }
 
 export interface Trace {

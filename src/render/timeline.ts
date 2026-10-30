@@ -77,6 +77,21 @@ export function summaryLine(trace: Trace, dot = "·"): string {
   return bits.join(` ${dot} `);
 }
 
+/** One-line summary plus optional per-tool breakdown (for --stats). */
+export function statsReport(trace: Trace, dot = "·"): string {
+  const lines = [summaryLine(trace, dot)];
+  const tools = trace.stats.tools;
+  if (!tools?.length) return lines.join("\n");
+  const parts = tools.slice(0, 12).map((tool) => {
+    const fail = tool.failures ? ` ${tool.failures} fail` : "";
+    const dur = tool.durationMs != null ? ` ${formatDuration(tool.durationMs)}` : "";
+    return `${tool.name}×${tool.calls}${dur}${fail}`;
+  });
+  const more = tools.length > 12 ? ` +${tools.length - 12} more` : "";
+  lines.push(`  tools: ${parts.join(", ")}${more}`);
+  return lines.join("\n");
+}
+
 function plural(n: number, noun: string): string {
   return `${n} ${noun}${n === 1 ? "" : "s"}`;
 }
