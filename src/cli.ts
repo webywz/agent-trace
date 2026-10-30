@@ -17,6 +17,7 @@ import { renderMermaid } from "./render/mermaid.js";
 import { spicyNarrative } from "./render/spicy.js";
 import { renderTimeline, statsReport } from "./render/timeline.js";
 import { renderGithubSummary } from "./summary-md.js";
+import { formatSarif } from "./sarif.js";
 import { renderTap } from "./tap.js";
 import { formatDuration } from "./util.js";
 
@@ -186,12 +187,25 @@ async function main(argv: string[]): Promise<number> {
     }
   }
 
+  if (args.sarif) {
+    try {
+      writeFileSync(args.sarif, formatSarif(trace, VERSION), "utf8");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      process.stderr.write(`agent-trace: could not write sarif: ${message}\n`);
+      return 1;
+    }
+  }
+
   if (compareResult) {
     return compareResult.equivalent ? 0 : 1;
   }
 
-  const overBudget = maxDurationCode(args.maxDurationMs, trace.stats.durationMs);
-  if (overBudget !== 0) return overBudget;
+  const overDuration = maxDurationCode(args.maxDurationMs, trace.stats.durationMs);
+  if (overDuration !== 0) return overDuration;
+
+  const overTokens = maxTokensCode(args.maxTokens, trace.stats.tokensIn, trace.stats.tokensOut);
+  if (overTokens !== 0) return overTokens;
 
   if (tapExit != null && tapExit !== 0) return tapExit;
 
@@ -209,6 +223,28 @@ function maxDurationCode(budget: number | undefined, actual: number | undefined)
   if (actual <= budget) return 0;
   process.stderr.write(
     `agent-trace: duration ${formatDuration(actual)} exceeds --max-duration ${formatDuration(budget)}\n`,
+  );
+  return 1;
+}
+
+function maxTokensCode(
+  budget: number | undefined,
+  tokensIn: number | undefined,
+  tokensOut: number | undefined,
+): number {
+  if (budget == null) return 0;
+  const hasIn = tokensIn != null;
+  const hasOut = tokensOut != null;
+  if (!hasIn && !hasOut) {
+    process.stderr.write(
+      `agent-trace: warn: --max-tokens ${budget} set but run has no measurable tokens\n`,
+    );
+    return 0;
+  }
+  const actual = (tokensIn ?? 0) + (tokensOut ?? 0);
+  if (actual <= budget) return 0;
+  process.stderr.write(
+    `agent-trace: tokens ${actual} (in ${tokensIn ?? 0} + out ${tokensOut ?? 0}) exceeds --max-tokens ${budget}\n`,
   );
   return 1;
 }

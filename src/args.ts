@@ -35,6 +35,10 @@ export interface CliArgs {
   redact: boolean;
   /** Fail if trace.stats.durationMs exceeds this (milliseconds). */
   maxDurationMs?: number;
+  /** Fail if (tokensIn + tokensOut) exceeds this. */
+  maxTokens?: number;
+  /** Write SARIF 2.1.0 report for failures / tool errors to this path. */
+  sarif?: string;
   /** Emit TAP version 13 to stdout (CI-friendly). */
   tap: boolean;
 }
@@ -97,6 +101,8 @@ const FLAGS = [
   "--html",
   "--redact",
   "--max-duration",
+  "--max-tokens",
+  "--sarif",
   "--tap",
 ];
 
@@ -286,6 +292,18 @@ export function parseArgs(argv: string[]): CliArgs {
       }
       continue;
     }
+    if (flag === "--max-tokens") {
+      args.maxTokens = toInt(inline ?? rest[++i], "--max-tokens");
+      continue;
+    }
+    if (flag === "--sarif") {
+      const value = inline ?? rest[++i];
+      if (!value || value.startsWith("-")) {
+        throw new UsageError("--sarif expects a path to write the SARIF report");
+      }
+      args.sarif = value;
+      continue;
+    }
     if (flag === "--html") {
       args.html = inline === undefined || inline === "" ? true : inline;
       continue;
@@ -392,6 +410,8 @@ Options:
       --spicy-llm        Narrative via OpenAI/Anthropic (needs API key)
       --fail-on-error    Exit 1 if the run had failures
       --max-duration <n> Exit 1 if run duration exceeds N (ms, or 30s / 2m)
+      --max-tokens <n>   Exit 1 if stats in+out tokens exceed N
+      --sarif <path>     Write SARIF 2.1.0 for failures / tool errors (Code Scanning)
       --redact           Scrub secrets (PEM, JWT, sk-, ghp_, Slack, AWS, Bearer…)
       --tap              TAP version 13 on stdout (CI; exit 1 on failures)
       --compare <file>   Diff tool sequence vs another trace (exit 1 on differ)
@@ -417,7 +437,7 @@ Formats:
 
 Exit codes:
   0  ok (or --compare with equivalent structure)
-  1  I/O or parse error; --fail-on-error / --tap with failures; --max-duration exceeded; --compare differs
+  1  I/O or parse error; --fail-on-error / --tap with failures; --max-duration / --max-tokens exceeded; --compare differs
   2  usage error (bad flag, missing file)
 
 Examples:
@@ -435,6 +455,8 @@ Examples:
   agent-trace --mermaid --demo
   agent-trace --fail-on-error --stats traces/ci.jsonl
   agent-trace --max-duration 30s --stats traces/ci.jsonl
+  agent-trace --max-tokens 8000 --stats traces/ci.jsonl
+  agent-trace --sarif results.sarif --demo
   agent-trace --redact --markdown run.jsonl
   agent-trace --tap --demo
   agent-trace --compare baseline.jsonl traces/ci.jsonl
