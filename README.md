@@ -43,7 +43,7 @@ jsonl  ·  8 steps  ·  7 tool calls  ·  1 failure
 
 | | |
 | --- | --- |
-| **Normalize** | OpenAI tool-call dumps, Anthropic / Claude Messages, LangChain / LangSmith trees, JSONL, generic event arrays |
+| **Normalize** | OpenAI, Anthropic / Claude Messages, Claude Code stream-json, Codex CLI JSONL, LangChain / LangSmith, JSONL, generic |
 | **Timeline** | Numbered steps: thoughts, tools, results, errors, durations |
 | **Filter** | `--only`, `--tool`, `--failures` for the slice you care about |
 | **Export** | Markdown for PR summaries, Mermaid for flowcharts, self-contained `--html`, `--json` / `--stats` for CI |
@@ -88,7 +88,7 @@ agent-trace [options] -                 # stdin
 
 | Flag | What it does |
 | --- | --- |
-| `-f, --format` | `auto` (default), `openai`, `anthropic`, `langchain`, `jsonl`, `generic` |
+| `-f, --format` | `auto` (default), `openai`, `anthropic`, `claude-code` (aliases: `claude_code`, `claude`), `codex`, `langchain`, `jsonl`, `generic` |
 | `-j, --json` | Normalized trace as JSON |
 | `--stats` | Summary + per-tool breakdown |
 | `--markdown`, `--md` | GitHub-friendly Markdown report |
@@ -122,6 +122,8 @@ Use **one** of `--json`, `--stats`, `--markdown`, `--mermaid`, `--html` (timelin
 
 - **OpenAI** — `chat.completion`, `messages[]` with `tool_calls`, Responses API `output[]`, streamed JSONL
 - **Anthropic** — Claude Messages: `text`, `tool_use`, `tool_result`, `thinking` content blocks
+- **Claude Code** — `stream-json` lines (`assistant` / `user` / `result` with nested message content blocks)
+- **Codex** — CLI JSONL (`{ timestamp, type, payload }` — `agent_message`, `function_call`, …)
 - **LangChain** — LangSmith run trees, callback events, `AgentAction` dumps
 - **JSONL** — one event per line (`role` / `type` / `tool` / `content` / `ts`)
 - **Generic** — JSON array or `{ events: [...] }` of `{ type, name, content, ts }`
@@ -174,7 +176,7 @@ npx @webywz/agent-trace --demo --no-color
 
 | | |
 | --- | --- |
-| **归一化** | OpenAI tool-call、Anthropic / Claude Messages、LangChain / LangSmith、JSONL、通用事件数组 |
+| **归一化** | OpenAI、Anthropic / Claude Messages、Claude Code stream-json、Codex CLI JSONL、LangChain / LangSmith、JSONL、通用事件 |
 | **时间线** | 编号步骤：思考、工具、结果、错误、耗时 |
 | **过滤** | `--only`、`--tool`、`--failures`，只看关心的切片 |
 | **导出** | Markdown PR 摘要、Mermaid 流程图、自包含 `--html`、`--json` / `--stats` 对接 CI |
@@ -214,7 +216,7 @@ agent-trace --spicy-llm run.jsonl   # 需要 OPENAI_API_KEY 或 ANTHROPIC_API_KE
 
 | 参数 | 作用 |
 | --- | --- |
-| `-f, --format` | `auto`（默认）/ `openai` / `anthropic` / `langchain` / `jsonl` / `generic` |
+| `-f, --format` | `auto`（默认）/ `openai` / `anthropic` / `claude-code`（别名 `claude_code`/`claude`）/ `codex` / `langchain` / `jsonl` / `generic` |
 | `-j, --json` | 输出归一化 JSON |
 | `--stats` | 摘要 + 按工具拆分 |
 | `--markdown`, `--md` | GitHub 友好的 Markdown 报告 |
@@ -244,6 +246,8 @@ agent-trace --spicy-llm run.jsonl   # 需要 OPENAI_API_KEY 或 ANTHROPIC_API_KE
 
 - **OpenAI** — `chat.completion`、`tool_calls`、Responses API、流式 JSONL
 - **Anthropic** — Claude Messages：`text` / `tool_use` / `tool_result` / `thinking`
+- **Claude Code** — `stream-json`（`assistant` / `user` / `result` + 嵌套 content blocks）
+- **Codex** — CLI JSONL（`{ timestamp, type, payload }`）
 - **LangChain** — LangSmith 树、回调事件、`AgentAction`
 - **JSONL** — 每行一个事件
 - **Generic** — JSON 数组或 `{ events: [...] }`

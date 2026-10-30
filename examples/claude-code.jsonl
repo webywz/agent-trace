@@ -1,0 +1,8 @@
+{"type":"system","subtype":"init","session_id":"sess_demo","model":"claude-sonnet-4"}
+{"type":"user","message":{"role":"user","content":"List files in src/ and summarize the CLI entrypoint."}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"thinking","thinking":"I'll glob src then read the CLI file."},{"type":"text","text":"Looking at src/ now."},{"type":"tool_use","id":"toolu_1","name":"Glob","input":{"pattern":"src/**/*.ts"}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_1","content":"src/cli.ts\nsrc/args.ts\nsrc/index.ts"}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_2","name":"Read","input":{"path":"src/cli.ts"}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_2","content":"#!/usr/bin/env node\nimport { main } from './run.js';\nmain();"}]}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Entrypoint is `src/cli.ts` — it imports `main` from `./run.js` and invokes it."}]}}
+{"type":"result","subtype":"success","is_error":false,"result":"Entrypoint is src/cli.ts — it imports main from ./run.js and invokes it.","duration_ms":4200}

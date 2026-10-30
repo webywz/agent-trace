@@ -1,5 +1,7 @@
 import type { ParseOptions, Trace, TraceFormat } from "../types.js";
 import { tryJsonParse } from "../util.js";
+import { looksLikeClaudeCode, parseClaudeCode } from "./claude-code.js";
+import { looksLikeCodex, parseCodex } from "./codex.js";
 import { looksLikeGeneric, parseGeneric } from "./generic.js";
 import { looksLikeJsonl, parseJsonl, splitJsonl } from "./jsonl.js";
 import { looksLikeLangChain, parseLangChain } from "./langchain.js";
@@ -16,6 +18,13 @@ export function parseTrace(input: string, options: ParseOptions = {}): Trace {
   const format = options.format ?? "auto";
   if (format !== "auto") {
     return parseAs(format, trimmed, source);
+  }
+
+  // Prefer stream-json / Codex JSONL sniff before generic JSON object parse,
+  // because a single-line object would otherwise steal the file.
+  if (looksLikeJsonl(trimmed)) {
+    if (looksLikeClaudeCode(trimmed)) return parseClaudeCode(trimmed, source);
+    if (looksLikeCodex(trimmed)) return parseCodex(trimmed, source);
   }
 
   const json = tryJsonParse(trimmed);
@@ -38,7 +47,7 @@ export function parseTrace(input: string, options: ParseOptions = {}): Trace {
   if (jsonl.steps.length) return jsonl;
 
   throw new Error(
-    "could not detect trace format (tried openai, anthropic, langchain, jsonl, generic); pass --format to force a parser",
+    "could not detect trace format (tried openai, anthropic, claude-code, codex, langchain, jsonl, generic); pass --format to force a parser",
   );
 }
 
@@ -48,6 +57,10 @@ function parseAs(format: Exclude<TraceFormat, "auto">, text: string, source?: st
       return parseOpenAI(json ?? decode(text, format), source);
     case "anthropic":
       return parseAnthropic(json ?? decode(text, format), source);
+    case "claude-code":
+      return parseClaudeCode(json ?? text, source);
+    case "codex":
+      return parseCodex(json ?? text, source);
     case "langchain":
       return parseLangChain(json ?? decode(text, format), source);
     case "generic":
@@ -70,6 +83,8 @@ function decode(text: string, format: string): unknown {
 }
 
 function detectJson(value: unknown): Exclude<TraceFormat, "auto"> {
+  if (looksLikeClaudeCode(value)) return "claude-code";
+  if (looksLikeCodex(value)) return "codex";
   // Anthropic before OpenAI: both use role/content, but tool_use blocks are Claude-specific.
   if (looksLikeAnthropic(value)) return "anthropic";
   if (looksLikeOpenAI(value)) return "openai";
@@ -78,4 +93,4 @@ function detectJson(value: unknown): Exclude<TraceFormat, "auto"> {
   return "generic";
 }
 
-export { parseAnthropic, parseGeneric, parseJsonl, parseLangChain, parseOpenAI };
+export { parseAnthropic, parseClaudeCode, parseCodex, parseGeneric, parseJsonl, parseLangChain, parseOpenAI };

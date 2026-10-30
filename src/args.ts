@@ -40,8 +40,25 @@ export class UsageError extends Error {
   }
 }
 
-const FORMATS = new Set<TraceFormat>(["auto", "openai", "anthropic", "langchain", "jsonl", "generic"]);
-const FORMAT_LIST = "auto|openai|anthropic|langchain|jsonl|generic";
+const FORMATS = new Set<string>([
+  "auto",
+  "openai",
+  "anthropic",
+  "claude-code",
+  "claude_code",
+  "claude",
+  "codex",
+  "langchain",
+  "jsonl",
+  "generic",
+]);
+const FORMAT_LIST = "auto|openai|anthropic|claude-code|codex|langchain|jsonl|generic";
+
+function normalizeFormat(value: string): TraceFormat {
+  const key = value.toLowerCase();
+  if (key === "claude_code" || key === "claude") return "claude-code";
+  return key as TraceFormat;
+}
 
 const FLAGS = [
   "-h",
@@ -190,10 +207,10 @@ export function parseArgs(argv: string[]): CliArgs {
 
     if (flag === "-f" || flag === "--format") {
       const value = inline ?? rest[++i];
-      if (!value || value.startsWith("-") || !FORMATS.has(value as TraceFormat)) {
+      if (!value || value.startsWith("-") || !FORMATS.has(value.toLowerCase())) {
         throw new UsageError(`unknown format '${value ?? ""}' (expected ${FORMAT_LIST})`);
       }
-      args.format = value as TraceFormat;
+      args.format = normalizeFormat(value);
       continue;
     }
     if (flag === "--width") {
@@ -350,12 +367,14 @@ Options:
   -v, --version          Print version
 
 Formats:
-  openai      Chat Completions, messages[], Responses API, streaming deltas
-  anthropic   Claude Messages API, content blocks (text / tool_use / tool_result)
-  langchain   LangSmith run trees, callback events, AgentAction dumps
-  jsonl       Role/tool/content events, Cursor-ish traces, generic objects
-  generic     JSON array (or { events: [...] }) of { type, name, content, ts }
-  auto        Sniff the file, then fall through the parsers above
+  openai       Chat Completions, messages[], Responses API, streaming deltas
+  anthropic    Claude Messages API, content blocks (text / tool_use / tool_result)
+  claude-code  Claude Code stream-json (aliases: claude_code, claude)
+  codex        Codex CLI JSONL ({ type, payload } / msg envelopes)
+  langchain    LangSmith run trees, callback events, AgentAction dumps
+  jsonl        Role/tool/content events, Cursor-ish traces, generic objects
+  generic      JSON array (or { events: [...] }) of { type, name, content, ts }
+  auto         Sniff the file, then fall through the parsers above
 
 Exit codes:
   0  ok (or --compare with equivalent structure)

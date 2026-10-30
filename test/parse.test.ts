@@ -130,4 +130,40 @@ describe("parseTrace auto-detect", () => {
   it("throws on empty input", () => {
     assert.throws(() => parseTrace("   "), /empty trace/);
   });
+
+it("parses Claude Code stream-json and auto-detects", () => {
+    const trace = parseTrace(fixture("examples/claude-code.jsonl"));
+    assert.equal(trace.format, "claude-code");
+    assert.equal(trace.steps[0]?.kind, "user");
+    assert.ok(trace.steps.some((s) => s.kind === "thought" && s.content?.includes("glob")));
+    assert.equal(trace.steps.find((s) => s.kind === "tool_call" && s.name === "Glob")?.toolCallId, "toolu_1");
+    assert.ok(trace.steps.some((s) => s.kind === "tool_result" && s.toolCallId === "toolu_1"));
+    assert.ok(trace.steps.some((s) => s.kind === "tool_call" && s.name === "Read"));
+    assert.ok(trace.steps.some((s) => s.kind === "assistant" && s.content?.includes("Entrypoint")));
+    assert.ok(trace.stats.toolCalls >= 2);
+  });
+
+  it("forces --format claude-code (and aliases via parse options)", () => {
+    const trace = parseTrace(fixture("examples/claude-code.jsonl"), { format: "claude-code" });
+    assert.equal(trace.format, "claude-code");
+    assert.ok(trace.stats.toolCalls >= 2);
+  });
+
+  it("parses Codex CLI JSONL and auto-detects", () => {
+    const trace = parseTrace(fixture("examples/codex.jsonl"));
+    assert.equal(trace.format, "codex");
+    assert.ok(trace.steps.some((s) => s.kind === "system" && s.content?.includes("package version")));
+    assert.ok(trace.steps.some((s) => s.kind === "thought"));
+    const call = trace.steps.find((s) => s.kind === "tool_call");
+    assert.equal(call?.name, "read_file");
+    assert.equal(call?.toolCallId, "call_1");
+    assert.ok(trace.steps.some((s) => s.kind === "tool_result" && s.toolCallId === "call_1"));
+    assert.ok(trace.steps.some((s) => s.kind === "assistant" && s.content?.includes("0.6.0")));
+  });
+
+  it("forces --format codex", () => {
+    const trace = parseTrace(fixture("examples/codex.jsonl"), { format: "codex" });
+    assert.equal(trace.format, "codex");
+    assert.ok(trace.stats.toolCalls >= 1);
+  });
 });

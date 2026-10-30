@@ -1,4 +1,4 @@
-export type TraceFormat = "auto" | "openai" | "anthropic" | "langchain" | "jsonl" | "generic";
+export type TraceFormat = "auto" | "openai" | "anthropic" | "claude-code" | "codex" | "langchain" | "jsonl" | "generic";
 
 export type StepKind =
   | "user"
