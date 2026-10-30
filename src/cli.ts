@@ -5,13 +5,16 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { helpText, parseArgs, UsageError } from "./args.js";
 import { createPalette, shouldColor } from "./color.js";
+import { compareMarkdown, compareTraces } from "./compare.js";
 import { filterTrace } from "./filter.js";
+import { appendGithubSummary, resolveGithubSummaryPath } from "./github-summary.js";
 import { parseTrace } from "./parse/index.js";
 import { readInput, wrapIoError } from "./read-input.js";
 import { renderMarkdown } from "./render/markdown.js";
 import { renderMermaid } from "./render/mermaid.js";
 import { spicyNarrative } from "./render/spicy.js";
 import { renderTimeline, statsReport } from "./render/timeline.js";
+import { renderGithubSummary } from "./summary-md.js";
 
 const VERSION = readVersion();
 
@@ -55,53 +58,103 @@ async function main(argv: string[]): Promise<number> {
     return 1;
   }
 
-  if (args.json) {
-    const payload = {
-      format: trace.format,
-      source: trace.source,
-      stats: trace.stats,
-      warnings: trace.warnings,
-      steps: trace.steps,
-      ...(args.spicy
-        ? { spicy: await spicyNarrative(trace, { localOnly: !args.spicyLlm }) }
-        : {}),
-    };
-    process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
-    return failOnErrorCode(args.failOnError, trace.stats.failures);
-  }
-
-  if (args.markdown) {
-    process.stdout.write(renderMarkdown(trace, { maxContent: args.maxContent }));
-    return failOnErrorCode(args.failOnError, trace.stats.failures);
-  }
-
-  if (args.mermaid) {
-    process.stdout.write(renderMermaid(trace, { maxContent: args.maxContent }));
-    return failOnErrorCode(args.failOnError, trace.stats.failures);
-  }
-
-  if (args.stats) {
-    process.stdout.write(`${statsReport(trace)}\n`);
-    for (const warning of trace.warnings) {
-      process.stderr.write(`agent-trace: warn: ${warning}\n`);
+  let compareResult: ReturnType<typeof compareTraces> | undefined;
+  if (args.compare) {
+    try {
+      const otherRaw = await readFile(args.compare, "utf8").catch((error) => {
+        throw wrapIoError(error, args.compare!);
+      });
+      let other = parseTrace(otherRaw, { format: args.format, source: args.compare });
+      other = filterTrace(other, {
+        only: args.only,
+        tools: args.tools,
+        failures: args.failures,
+      });
+      compareResult = compareTraces(trace, other);
+      process.stdout.write(compareResult.report);
+    } catch (error) {
+      printErr(error);
+      return 1;
     }
-  } else {
-    const timeline = renderTimeline(trace, {
-      color: args.color,
-      ascii: args.ascii,
-      width: args.width,
-      maxContent: args.maxContent,
-    });
-    process.stdout.write(timeline);
   }
 
-  if (args.spicy) {
-    const color = createPalette(shouldColor(args.color));
-    const narrative = await spicyNarrative(trace, { localOnly: !args.spicyLlm });
-    process.stdout.write(`\n${color.bold("spicy")}  ${narrative}\n`);
+  // Normal outputs skipped when --compare is the focus, unless an export flag is also set.
+  if (!args.compare) {
+    if (args.json) {
+      const payload = {
+        format: trace.format,
+        source: trace.source,
+        stats: trace.stats,
+        warnings: trace.warnings,
+        steps: trace.steps,
+        ...(args.spicy
+          ? { spicy: await spicyNarrative(trace, { localOnly: !args.spicyLlm }) }
+          : {}),
+      };
+      process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+    } else if (args.markdown) {
+      process.stdout.write(renderMarkdown(trace, { maxContent: args.maxContent }));
+    } else if (args.mermaid) {
+      process.stdout.write(renderMermaid(trace, { maxContent: args.maxContent }));
+    } else if (args.stats) {
+      process.stdout.write(`${statsReport(trace)}\n`);
+      for (const warning of trace.warnings) {
+        process.stderr.write(`agent-trace: warn: ${warning}\n`);
+      }
+    } else {
+      const timeline = renderTimeline(trace, {
+        color: args.color,
+        ascii: args.ascii,
+        width: args.width,
+        maxContent: args.maxContent,
+      });
+      process.stdout.write(timeline);
+    }
+
+    if (args.spicy) {
+      const color = createPalette(shouldColor(args.color));
+      const narrative = await spicyNarrative(trace, { localOnly: !args.spicyLlm });
+      process.stdout.write(`\n${color.bold("spicy")}  ${narrative}\n`);
+    }
+  } else if (args.json || args.markdown || args.mermaid || args.stats) {
+    // Allow exporting the primary alongside compare
+    if (args.json) {
+      process.stdout.write(
+        `${JSON.stringify({ format: trace.format, source: trace.source, stats: trace.stats, steps: trace.steps }, null, 2)}\n`,
+      );
+    } else if (args.markdown) {
+      process.stdout.write(renderMarkdown(trace, { maxContent: args.maxContent }));
+    } else if (args.mermaid) {
+      process.stdout.write(renderMermaid(trace, { maxContent: args.maxContent }));
+    } else if (args.stats) {
+      process.stdout.write(`${statsReport(trace)}\n`);
+    }
   }
 
+  const outSummary = resolveSummaryTarget(args.githubSummary);
+  if (outSummary) {
+    try {
+      const md = compareResult ? compareMarkdown(compareResult) : renderGithubSummary(trace);
+      appendGithubSummary(outSummary, md);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      process.stderr.write(`agent-trace: could not write github summary: ${message}\n`);
+    }
+  }
+
+  if (compareResult) {
+    return compareResult.equivalent ? 0 : 1;
+  }
   return failOnErrorCode(args.failOnError, trace.stats.failures);
+}
+
+function resolveSummaryTarget(flag: string | true | undefined): string | undefined {
+  // Flag passed → always write (env, explicit path, or local default).
+  // Flag omitted → write only when GITHUB_STEP_SUMMARY is set (Actions).
+  if (flag === undefined) {
+    return resolveGithubSummaryPath(undefined);
+  }
+  return resolveGithubSummaryPath(flag);
 }
 
 function failOnErrorCode(enabled: boolean, failures: number): number {

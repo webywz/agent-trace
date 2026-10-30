@@ -23,3 +23,8 @@ export { spicyNarrative, localSpicy } from "./render/spicy.js";
 export { computeStats } from "./stats.js";
 export { filterTrace, parseKindList, parseToolList } from "./filter.js";
 export type { FilterOptions } from "./filter.js";
+
+export { compareTraces, compareMarkdown, toolSequence, diffToolSequences } from "./compare.js";
+export type { CompareResult } from "./compare.js";
+export { appendGithubSummary, resolveGithubSummaryPath, DEFAULT_GITHUB_SUMMARY } from "./github-summary.js";
+export { renderGithubSummary } from "./summary-md.js";

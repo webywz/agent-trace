@@ -49,6 +49,8 @@ jsonl  ·  8 steps  ·  7 tool calls  ·  1 failure
 | **Export** | Markdown for PR summaries, Mermaid for flowcharts, `--json` / `--stats` for CI |
 | **Offline spicy** | `--spicy` local narrative recap; `--spicy-llm` opt-in LLM rewrite |
 | **CI gate** | `--fail-on-error` exits `1` when the run had tool/step failures |
+| **Compare** | `--compare <file>` diffs tool sequences / failures (exit `1` on differ) |
+| **Step summary** | `--github-summary` appends Markdown to `$GITHUB_STEP_SUMMARY` (or a local file) |
 
 ### Install
 
@@ -70,6 +72,8 @@ agent-trace --only tool,error --stats --demo
 agent-trace --failures --markdown traces/last-run.jsonl
 agent-trace --mermaid --demo
 agent-trace --fail-on-error --stats traces/ci.jsonl
+agent-trace run.jsonl --compare baseline.jsonl
+agent-trace --github-summary --demo
 agent-trace --spicy --demo          # local only
 agent-trace --spicy-llm run.jsonl   # needs OPENAI_API_KEY or ANTHROPIC_API_KEY
 ```
@@ -94,6 +98,8 @@ agent-trace [options] -                 # stdin
 | `--spicy` | **Local** narrative recap — no network |
 | `--spicy-llm` | Opt-in LLM narrative via `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` |
 | `--fail-on-error` | Exit `1` if the trace has failures |
+| `--compare <file>` | Diff tool sequence / failures vs another trace (exit `1` on differ) |
+| `--github-summary [path]` | Append short Markdown to `$GITHUB_STEP_SUMMARY`, `path`, or `./github-step-summary.md` |
 | `--demo` | Bundled sample (`examples/run.jsonl`) |
 | `--ascii` | ASCII-only timeline |
 | `--color` / `--no-color` | Force or disable ANSI (`NO_COLOR` also disables) |
@@ -106,8 +112,8 @@ Use **one** of `--json`, `--stats`, `--markdown`, `--mermaid` (timeline is the d
 
 | Exit | When |
 | --- | --- |
-| `0` | Timeline / export printed |
-| `1` | I/O or parse error, or `--fail-on-error` with failures |
+| `0` | Timeline / export printed, or `--compare` equivalent |
+| `1` | I/O or parse error; `--fail-on-error` with failures; `--compare` differs |
 | `2` | Usage error |
 
 ### What it parses
@@ -172,6 +178,8 @@ npx @webywz/agent-trace --demo --no-color
 | **导出** | Markdown（PR 摘要）、Mermaid（流程图）、`--json` / `--stats`（CI） |
 | **离线 spicy** | `--spicy` 本地叙事；`--spicy-llm` 可选联网 LLM 重写 |
 | **CI 门禁** | `--fail-on-error`：运行有失败时退出码 `1` |
+| **对比** | `--compare <file>`：对比工具序列 / 失败数（不同则退出 `1`） |
+| **Step Summary** | `--github-summary`：把 Markdown 追加到 `$GITHUB_STEP_SUMMARY`（或本地文件） |
 
 ### 安装
 
@@ -193,6 +201,8 @@ agent-trace --only tool,error --stats --demo
 agent-trace --failures --markdown traces/last-run.jsonl
 agent-trace --mermaid --demo
 agent-trace --fail-on-error --stats traces/ci.jsonl
+agent-trace run.jsonl --compare baseline.jsonl
+agent-trace --github-summary --demo
 agent-trace --spicy --demo          # 仅本地
 agent-trace --spicy-llm run.jsonl   # 需要 OPENAI_API_KEY 或 ANTHROPIC_API_KEY
 ```
@@ -212,6 +222,8 @@ agent-trace --spicy-llm run.jsonl   # 需要 OPENAI_API_KEY 或 ANTHROPIC_API_KE
 | `--spicy` | **本地**叙事，不联网 |
 | `--spicy-llm` | 可选 LLM 叙事（需 API key） |
 | `--fail-on-error` | 有失败则退出码 `1` |
+| `--compare <file>` | 与另一份 trace 对比工具序列 / 失败数（不同则退出 `1`） |
+| `--github-summary [path]` | 追加短 Markdown 到 `$GITHUB_STEP_SUMMARY`、指定路径或 `./github-step-summary.md` |
 | `--demo` | 使用包内示例 |
 
 `--json` / `--stats` / `--markdown` / `--mermaid` 四选一（默认为时间线）。
@@ -220,8 +232,8 @@ agent-trace --spicy-llm run.jsonl   # 需要 OPENAI_API_KEY 或 ANTHROPIC_API_KE
 
 | 退出码 | 含义 |
 | --- | --- |
-| `0` | 正常输出 |
-| `1` | 读写/解析错误，或 `--fail-on-error` 命中失败 |
+| `0` | 正常输出，或 `--compare` 结构等价 |
+| `1` | 读写/解析错误；`--fail-on-error` 命中失败；`--compare` 有差异 |
 | `2` | 用法错误 |
 
 ### 能解析什么
