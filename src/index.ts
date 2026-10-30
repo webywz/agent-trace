@@ -18,6 +18,7 @@ export { parseJsonl } from "./parse/jsonl.js";
 export { parseGeneric } from "./parse/generic.js";
 export { renderTimeline, summaryLine, statsReport } from "./render/timeline.js";
 export { renderMarkdown } from "./render/markdown.js";
+export { renderHtml, escapeHtml } from "./render/html.js";
 export { renderMermaid } from "./render/mermaid.js";
 export { spicyNarrative, localSpicy } from "./render/spicy.js";
 export { computeStats } from "./stats.js";
