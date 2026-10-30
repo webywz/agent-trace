@@ -39,6 +39,8 @@ export interface CliArgs {
   maxTokens?: number;
   /** Write SARIF 2.1.0 report for failures / tool errors to this path. */
   sarif?: string;
+  /** Write JUnit XML report for failures to this path. */
+  junit?: string;
   /** Emit TAP version 13 to stdout (CI-friendly). */
   tap: boolean;
 }
@@ -62,12 +64,16 @@ const FORMATS = new Set<string>([
   "langchain",
   "jsonl",
   "generic",
+  "ollama",
+  "openai-compat",
+  "openai_compat",
 ]);
-const FORMAT_LIST = "auto|openai|anthropic|claude-code|codex|langchain|jsonl|generic";
+const FORMAT_LIST = "auto|openai|anthropic|claude-code|codex|langchain|jsonl|generic|ollama|openai-compat";
 
 function normalizeFormat(value: string): TraceFormat {
   const key = value.toLowerCase();
   if (key === "claude_code" || key === "claude") return "claude-code";
+  if (key === "openai_compat") return "openai-compat";
   return key as TraceFormat;
 }
 
@@ -103,6 +109,7 @@ const FLAGS = [
   "--max-duration",
   "--max-tokens",
   "--sarif",
+  "--junit",
   "--tap",
 ];
 
@@ -304,6 +311,14 @@ export function parseArgs(argv: string[]): CliArgs {
       args.sarif = value;
       continue;
     }
+    if (flag === "--junit") {
+      const value = inline ?? rest[++i];
+      if (!value || value.startsWith("-")) {
+        throw new UsageError("--junit expects a path to write the JUnit XML report");
+      }
+      args.junit = value;
+      continue;
+    }
     if (flag === "--html") {
       args.html = inline === undefined || inline === "" ? true : inline;
       continue;
@@ -412,6 +427,7 @@ Options:
       --max-duration <n> Exit 1 if run duration exceeds N (ms, or 30s / 2m)
       --max-tokens <n>   Exit 1 if stats in+out tokens exceed N
       --sarif <path>     Write SARIF 2.1.0 for failures / tool errors (Code Scanning)
+      --junit <path>     Write JUnit XML for failures (CI)
       --redact           Scrub secrets (PEM, JWT, sk-, ghp_, Slack, AWS, Bearer…)
       --tap              TAP version 13 on stdout (CI; exit 1 on failures)
       --compare <file>   Diff tool sequence vs another trace (exit 1 on differ)
@@ -426,14 +442,16 @@ Options:
   -v, --version          Print version
 
 Formats:
-  openai       Chat Completions, messages[], Responses API, streaming deltas
-  anthropic    Claude Messages API, content blocks (text / tool_use / tool_result)
-  claude-code  Claude Code stream-json (aliases: claude_code, claude)
-  codex        Codex CLI JSONL ({ type, payload } / msg envelopes)
-  langchain    LangSmith run trees, callback events, AgentAction dumps
-  jsonl        Role/tool/content events, Cursor-ish traces, generic objects
-  generic      JSON array (or { events: [...] }) of { type, name, content, ts }
-  auto         Sniff the file, then fall through the parsers above
+  openai         Chat Completions, messages[], Responses API, streaming deltas
+  anthropic      Claude Messages API, content blocks (text / tool_use / tool_result)
+  claude-code    Claude Code stream-json (aliases: claude_code, claude)
+  codex          Codex CLI JSONL ({ type, payload } / msg envelopes)
+  langchain      LangSmith run trees, callback events, AgentAction dumps
+  ollama         Ollama /api/chat + /api/generate NDJSON (alias path: openai-compat)
+  openai-compat  OpenAI-compat chat JSONL / local servers (same parser as ollama)
+  jsonl          Role/tool/content events, Cursor-ish traces, generic objects
+  generic        JSON array (or { events: [...] }) of { type, name, content, ts }
+  auto           Sniff the file, then fall through the parsers above
 
 Exit codes:
   0  ok (or --compare with equivalent structure)
@@ -457,6 +475,7 @@ Examples:
   agent-trace --max-duration 30s --stats traces/ci.jsonl
   agent-trace --max-tokens 8000 --stats traces/ci.jsonl
   agent-trace --sarif results.sarif --demo
+  agent-trace --junit results.xml --demo
   agent-trace --redact --markdown run.jsonl
   agent-trace --tap --demo
   agent-trace --compare baseline.jsonl traces/ci.jsonl

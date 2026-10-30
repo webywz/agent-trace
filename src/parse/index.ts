@@ -7,6 +7,7 @@ import { looksLikeJsonl, parseJsonl, splitJsonl } from "./jsonl.js";
 import { looksLikeLangChain, parseLangChain } from "./langchain.js";
 import { looksLikeAnthropic, parseAnthropic } from "./anthropic.js";
 import { looksLikeOpenAI, parseOpenAI } from "./openai.js";
+import { looksLikeOllama, parseOllama } from "./ollama.js";
 
 export function parseTrace(input: string, options: ParseOptions = {}): Trace {
   const source = options.source;
@@ -25,6 +26,8 @@ export function parseTrace(input: string, options: ParseOptions = {}): Trace {
   if (looksLikeJsonl(trimmed)) {
     if (looksLikeClaudeCode(trimmed)) return parseClaudeCode(trimmed, source);
     if (looksLikeCodex(trimmed)) return parseCodex(trimmed, source);
+    const { rows } = splitJsonl(trimmed);
+    if (looksLikeOllama(rows)) return parseOllama(rows, source);
   }
 
   const json = tryJsonParse(trimmed);
@@ -55,6 +58,12 @@ function parseAs(format: Exclude<TraceFormat, "auto">, text: string, source?: st
   switch (format) {
     case "openai":
       return parseOpenAI(json ?? decode(text, format), source);
+    case "ollama":
+    case "openai-compat": {
+      const trace = parseOllama(json ?? text, source);
+      trace.format = format;
+      return trace;
+    }
     case "anthropic":
       return parseAnthropic(json ?? decode(text, format), source);
     case "claude-code":
@@ -85,6 +94,7 @@ function decode(text: string, format: string): unknown {
 function detectJson(value: unknown): Exclude<TraceFormat, "auto"> {
   if (looksLikeClaudeCode(value)) return "claude-code";
   if (looksLikeCodex(value)) return "codex";
+  if (looksLikeOllama(value)) return "ollama";
   // Anthropic before OpenAI: both use role/content, but tool_use blocks are Claude-specific.
   if (looksLikeAnthropic(value)) return "anthropic";
   if (looksLikeOpenAI(value)) return "openai";
@@ -93,4 +103,4 @@ function detectJson(value: unknown): Exclude<TraceFormat, "auto"> {
   return "generic";
 }
 
-export { parseAnthropic, parseClaudeCode, parseCodex, parseGeneric, parseJsonl, parseLangChain, parseOpenAI };
+export { parseAnthropic, parseClaudeCode, parseCodex, parseGeneric, parseJsonl, parseLangChain, parseOpenAI, parseOllama };

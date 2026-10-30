@@ -43,12 +43,12 @@ jsonl  ·  8 steps  ·  7 tool calls  ·  1 failure
 
 | | |
 | --- | --- |
-| **Normalize** | OpenAI, Anthropic / Claude Messages, Claude Code stream-json, Codex CLI JSONL, LangChain / LangSmith, JSONL, generic |
+| **Normalize** | OpenAI, Anthropic / Claude Messages, Claude Code stream-json, Codex CLI JSONL, LangChain / LangSmith, Ollama / OpenAI-compat, JSONL, generic |
 | **Timeline** | Numbered steps: thoughts, tools, results, errors, durations |
 | **Filter** | `--only`, `--tool`, `--failures` for the slice you care about |
 | **Export** | Markdown for PR summaries, Mermaid for flowcharts, self-contained `--html`, `--json` / `--stats` for CI |
 | **Offline spicy** | `--spicy` local narrative recap; `--spicy-llm` opt-in LLM rewrite |
-| **CI gate** | `--fail-on-error` exits `1` on failures; `--max-duration` budgets wall time (`30s` / `2m`); `--max-tokens` budgets in+out tokens; `--sarif` writes Code Scanning SARIF |
+| **CI gate** | `--fail-on-error` exits `1` on failures; `--max-duration` budgets wall time (`30s` / `2m`); `--max-tokens` budgets in+out tokens; `--sarif` / `--junit` write Code Scanning SARIF / JUnit XML |
 | **Redact** | `--redact` scrubs PEM / JWT / `sk-` / `ghp_` / Slack / AWS / Bearer before share |
 | **TAP** | `--tap` emits TAP version 13 for `prove` / CI (exit `1` on failures) |
 | **Compare** | `--compare <file>` diffs tool sequences / failures (exit `1` on differ) |
@@ -78,6 +78,7 @@ agent-trace --fail-on-error --stats traces/ci.jsonl
 agent-trace --max-duration 30s --stats traces/ci.jsonl
 agent-trace --max-tokens 8000 --stats traces/ci.jsonl
 agent-trace --sarif results.sarif --demo
+agent-trace --junit results.xml --demo
 agent-trace --max-tokens 8000 --stats traces/ci.jsonl
 agent-trace --sarif results.sarif --demo
 agent-trace --redact --markdown run.jsonl
@@ -97,7 +98,7 @@ agent-trace [options] -                 # stdin
 
 | Flag | What it does |
 | --- | --- |
-| `-f, --format` | `auto` (default), `openai`, `anthropic`, `claude-code` (aliases: `claude_code`, `claude`), `codex`, `langchain`, `jsonl`, `generic` |
+| `-f, --format` | `auto` (default), `openai`, `anthropic`, `claude-code` (aliases: `claude_code`, `claude`), `codex`, `langchain`, `ollama`, `openai-compat`, `jsonl`, `generic` |
 | `-j, --json` | Normalized trace as JSON |
 | `--stats` | Summary + per-tool breakdown |
 | `--markdown`, `--md` | GitHub-friendly Markdown report |
@@ -112,6 +113,7 @@ agent-trace [options] -                 # stdin
 | `--max-duration <n>` | Exit `1` if run duration exceeds N (`5000`, `30s`, `2m`) |
 | `--max-tokens <n>` | Exit `1` if stats in+out tokens exceed N |
 | `--sarif <path>` | Write SARIF 2.1.0 for failures / tool errors (GitHub Code Scanning) |
+| `--junit <path>` | Write JUnit XML for failures (CI) |
 | `--redact` | Scrub secrets (PEM, JWT, `sk-`/`sk-ant-`/`sk-proj-`, `ghp_`/`gho_`/`github_pat_`, Slack, AWS `AKIA…`, Bearer/Basic) |
 | `--tap` | TAP version 13 on stdout (CI; exit `1` on failures; `--stats` still ok on stderr) |
 | `--compare <file>` | Diff tool sequence / failures vs another trace (exit `1` on differ) |
@@ -135,6 +137,7 @@ Use **one** of `--json`, `--markdown`, `--mermaid`, `--html`, `--tap` (timeline 
 ### What it parses
 
 - **OpenAI** — `chat.completion`, `messages[]` with `tool_calls`, Responses API `output[]`, streamed JSONL
+- **Ollama / OpenAI-compat** — `/api/chat` + `/api/generate` NDJSON; OpenAI-compat `chat.completion(.chunk)` JSONL
 - **Anthropic** — Claude Messages: `text`, `tool_use`, `tool_result`, `thinking` content blocks
 - **Claude Code** — `stream-json` lines (`assistant` / `user` / `result` with nested message content blocks)
 - **Codex** — CLI JSONL (`{ timestamp, type, payload }` — `agent_message`, `function_call`, …)
@@ -197,7 +200,7 @@ npx @webywz/agent-trace --demo --no-color
 | **过滤** | `--only`、`--tool`、`--failures`，只看关心的切片 |
 | **导出** | Markdown PR 摘要、Mermaid 流程图、自包含 `--html`、`--json` / `--stats` 对接 CI |
 | **离线 spicy** | `--spicy` 本地叙事；`--spicy-llm` 可选联网 LLM 重写 |
-| **CI 门禁** | `--fail-on-error` 失败退出 `1`；`--max-duration` 限制总耗时（`30s` / `2m`）；`--max-tokens` 限制 in+out token；`--sarif` 写出 Code Scanning SARIF |
+| **CI 门禁** | `--fail-on-error` 失败退出 `1`；`--max-duration` 限制总耗时（`30s` / `2m`）；`--max-tokens` 限制 in+out token；`--sarif` / `--junit` 写出 Code Scanning SARIF / JUnit XML |
 | **脱敏** | `--redact`：分享前擦除 PEM / JWT / `sk-` / `ghp_` / Slack / AWS / Bearer |
 | **TAP** | `--tap`：输出 TAP version 13，方便 `prove` / CI（有失败则退出 `1`） |
 | **对比** | `--compare <file>`：对比工具序列 / 失败数（不同则退出 `1`） |
@@ -237,7 +240,7 @@ agent-trace --spicy-llm run.jsonl   # 需要 OPENAI_API_KEY 或 ANTHROPIC_API_KE
 
 | 参数 | 作用 |
 | --- | --- |
-| `-f, --format` | `auto`（默认）/ `openai` / `anthropic` / `claude-code`（别名 `claude_code`/`claude`）/ `codex` / `langchain` / `jsonl` / `generic` |
+| `-f, --format` | `auto`（默认）/ `openai` / `anthropic` / `claude-code`（别名 `claude_code`/`claude`）/ `codex` / `langchain` / `ollama` / `openai-compat` / `jsonl` / `generic` |
 | `-j, --json` | 输出归一化 JSON |
 | `--stats` | 摘要 + 按工具拆分 |
 | `--markdown`, `--md` | GitHub 友好的 Markdown 报告 |
@@ -252,6 +255,7 @@ agent-trace --spicy-llm run.jsonl   # 需要 OPENAI_API_KEY 或 ANTHROPIC_API_KE
 | `--max-duration <n>` | 总耗时超过 N 则退出 `1`（`5000` / `30s` / `2m`） |
 | `--max-tokens <n>` | stats 的 in+out token 超过 N 则退出 `1` |
 | `--sarif <path>` | 将失败 / 工具错误写成 SARIF 2.1.0（GitHub Code Scanning） |
+| `--junit <path>` | 将失败写成 JUnit XML（CI） |
 | `--redact` | 脱敏（PEM、JWT、`sk-`/`sk-ant-`/`sk-proj-`、`ghp_`/`gho_`/`github_pat_`、Slack、AWS `AKIA…`、Bearer/Basic） |
 | `--tap` | 向 stdout 输出 TAP version 13（CI；有失败退出 `1`；可与 `--stats` 同用，stats 走 stderr） |
 | `--compare <file>` | 与另一份 trace 对比工具序列 / 失败数（不同则退出 `1`） |
