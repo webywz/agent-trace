@@ -28,6 +28,8 @@ export interface CliArgs {
    * string = explicit path. Undefined = only write when GITHUB_STEP_SUMMARY is set.
    */
   githubSummary?: string | true;
+  /** HTML report: true = stdout; string = write to path. */
+  html?: string | true;
 }
 
 export class UsageError extends Error {
@@ -68,6 +70,7 @@ const FLAGS = [
   "--failures",
   "--compare",
   "--github-summary",
+  "--html",
 ];
 
 export function parseArgs(argv: string[]): CliArgs {
@@ -159,6 +162,17 @@ export function parseArgs(argv: string[]): CliArgs {
       args.failures = true;
       continue;
     }
+    if (token === "--html") {
+      // Bare flag: stdout. Peek next token if it looks like a path.
+      const next = rest[i + 1];
+      if (next && !next.startsWith("-")) {
+        args.html = next;
+        i += 1;
+      } else {
+        args.html = true;
+      }
+      continue;
+    }
     if (token === "--github-summary") {
       // Bare flag: auto path. Peek next token if it looks like a path.
       const next = rest[i + 1];
@@ -223,6 +237,10 @@ export function parseArgs(argv: string[]): CliArgs {
       args.compare = value;
       continue;
     }
+    if (flag === "--html") {
+      args.html = inline === undefined || inline === "" ? true : inline;
+      continue;
+    }
     if (flag === "--github-summary") {
       // --github-summary=path form (bare handled above)
       args.githubSummary = inline === undefined || inline === "" ? true : inline;
@@ -244,9 +262,9 @@ export function parseArgs(argv: string[]): CliArgs {
     throw new UsageError("do not pass a file with --demo (the bundled sample is used)");
   }
 
-  const outputs = [args.json, args.stats, args.markdown, args.mermaid].filter(Boolean).length;
+  const outputs = [args.json, args.stats, args.markdown, args.mermaid, args.html].filter(Boolean).length;
   if (outputs > 1) {
-    throw new UsageError("use only one of --json, --stats, --markdown, --mermaid");
+    throw new UsageError("use only one of --json, --stats, --markdown, --mermaid, --html");
   }
 
   return args;
@@ -312,6 +330,7 @@ Options:
   -j, --json             Normalized trace as JSON
       --stats            Summary + per-tool breakdown
       --markdown, --md   GitHub-friendly Markdown report
+      --html [path]      Self-contained HTML report (stdout, or write to path)
       --mermaid          Mermaid flowchart (paste into a \`\`\`mermaid fence)
       --only <kinds>     Keep kinds: user,tool,result,error,assistant,…
       --tool <name>      Keep steps for this tool (repeatable / comma list)
@@ -353,6 +372,8 @@ Examples:
   agent-trace --failures --demo
   agent-trace --tool run_tests --demo
   agent-trace --markdown --demo > report.md
+  agent-trace --html --demo > trace.html
+  agent-trace --html /tmp/at.html --demo
   agent-trace --mermaid --demo
   agent-trace --fail-on-error --stats traces/ci.jsonl
   agent-trace --compare baseline.jsonl traces/ci.jsonl

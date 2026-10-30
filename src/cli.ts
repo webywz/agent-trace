@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync, realpathSync } from "node:fs";
+import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +10,7 @@ import { filterTrace } from "./filter.js";
 import { appendGithubSummary, resolveGithubSummaryPath } from "./github-summary.js";
 import { parseTrace } from "./parse/index.js";
 import { readInput, wrapIoError } from "./read-input.js";
+import { renderHtml } from "./render/html.js";
 import { renderMarkdown } from "./render/markdown.js";
 import { renderMermaid } from "./render/mermaid.js";
 import { spicyNarrative } from "./render/spicy.js";
@@ -94,6 +95,13 @@ async function main(argv: string[]): Promise<number> {
       process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
     } else if (args.markdown) {
       process.stdout.write(renderMarkdown(trace, { maxContent: args.maxContent }));
+    } else if (args.html) {
+      const html = renderHtml(trace, { maxContent: args.maxContent });
+      if (typeof args.html === "string") {
+        writeFileSync(args.html, html, "utf8");
+      } else {
+        process.stdout.write(html.endsWith("\n") ? html : `${html}\n`);
+      }
     } else if (args.mermaid) {
       process.stdout.write(renderMermaid(trace, { maxContent: args.maxContent }));
     } else if (args.stats) {
@@ -116,7 +124,7 @@ async function main(argv: string[]): Promise<number> {
       const narrative = await spicyNarrative(trace, { localOnly: !args.spicyLlm });
       process.stdout.write(`\n${color.bold("spicy")}  ${narrative}\n`);
     }
-  } else if (args.json || args.markdown || args.mermaid || args.stats) {
+  } else if (args.json || args.markdown || args.html || args.mermaid || args.stats) {
     // Allow exporting the primary alongside compare
     if (args.json) {
       process.stdout.write(
@@ -124,6 +132,13 @@ async function main(argv: string[]): Promise<number> {
       );
     } else if (args.markdown) {
       process.stdout.write(renderMarkdown(trace, { maxContent: args.maxContent }));
+    } else if (args.html) {
+      const html = renderHtml(trace, { maxContent: args.maxContent });
+      if (typeof args.html === "string") {
+        writeFileSync(args.html, html, "utf8");
+      } else {
+        process.stdout.write(html.endsWith("\n") ? html : `${html}\n`);
+      }
     } else if (args.mermaid) {
       process.stdout.write(renderMermaid(trace, { maxContent: args.maxContent }));
     } else if (args.stats) {
