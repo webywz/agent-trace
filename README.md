@@ -48,7 +48,9 @@ jsonl  ·  8 steps  ·  7 tool calls  ·  1 failure
 | **Filter** | `--only`, `--tool`, `--failures` for the slice you care about |
 | **Export** | Markdown for PR summaries, Mermaid for flowcharts, self-contained `--html`, `--json` / `--stats` for CI |
 | **Offline spicy** | `--spicy` local narrative recap; `--spicy-llm` opt-in LLM rewrite |
-| **CI gate** | `--fail-on-error` exits `1` when the run had tool/step failures |
+| **CI gate** | `--fail-on-error` exits `1` on failures; `--max-duration` budgets wall time (`30s` / `2m`) |
+| **Redact** | `--redact` scrubs PEM / JWT / `sk-` / `ghp_` / Slack / AWS / Bearer before share |
+| **TAP** | `--tap` emits TAP version 13 for `prove` / CI (exit `1` on failures) |
 | **Compare** | `--compare <file>` diffs tool sequences / failures (exit `1` on differ) |
 | **Step summary** | `--github-summary` appends Markdown to `$GITHUB_STEP_SUMMARY` (or a local file) |
 
@@ -73,6 +75,9 @@ agent-trace --failures --markdown traces/last-run.jsonl
 agent-trace --mermaid --demo
 agent-trace --html /tmp/at.html --demo
 agent-trace --fail-on-error --stats traces/ci.jsonl
+agent-trace --max-duration 30s --stats traces/ci.jsonl
+agent-trace --redact --markdown run.jsonl
+agent-trace --tap --demo
 agent-trace run.jsonl --compare baseline.jsonl
 agent-trace --github-summary --demo
 agent-trace --spicy --demo          # local only
@@ -100,6 +105,9 @@ agent-trace [options] -                 # stdin
 | `--spicy` | **Local** narrative recap — no network |
 | `--spicy-llm` | Opt-in LLM narrative via `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` |
 | `--fail-on-error` | Exit `1` if the trace has failures |
+| `--max-duration <n>` | Exit `1` if run duration exceeds N (`5000`, `30s`, `2m`) |
+| `--redact` | Scrub secrets (PEM, JWT, `sk-`/`sk-ant-`/`sk-proj-`, `ghp_`/`gho_`/`github_pat_`, Slack, AWS `AKIA…`, Bearer/Basic) |
+| `--tap` | TAP version 13 on stdout (CI; exit `1` on failures; `--stats` still ok on stderr) |
 | `--compare <file>` | Diff tool sequence / failures vs another trace (exit `1` on differ) |
 | `--github-summary [path]` | Append short Markdown to `$GITHUB_STEP_SUMMARY`, `path`, or `./github-step-summary.md` |
 | `--demo` | Bundled sample (`examples/run.jsonl`) |
@@ -108,14 +116,14 @@ agent-trace [options] -                 # stdin
 | `--width <n>` | Wrap width |
 | `--max-content <n>` | Truncate args / results (default 160) |
 
-Use **one** of `--json`, `--stats`, `--markdown`, `--mermaid`, `--html` (timeline is the default).
+Use **one** of `--json`, `--markdown`, `--mermaid`, `--html`, `--tap` (timeline is the default). `--stats` alone is fine; with `--tap` it prints on stderr.
 
 `--spicy` is always local. `--spicy-llm` never blocks the timeline: if the key is missing or the call fails, you still get the local recap.
 
 | Exit | When |
 | --- | --- |
 | `0` | Timeline / export printed, or `--compare` equivalent |
-| `1` | I/O or parse error; `--fail-on-error` with failures; `--compare` differs |
+| `1` | I/O or parse error; `--fail-on-error` / `--tap` with failures; `--max-duration` exceeded; `--compare` differs |
 | `2` | Usage error |
 
 ### What it parses
@@ -134,13 +142,15 @@ Use **one** of `--json`, `--stats`, `--markdown`, `--mermaid`, `--html` (timelin
 import {
   parseTrace,
   filterTrace,
+  redactTrace,
   renderTimeline,
   renderMarkdown,
   renderMermaid,
+  renderTap,
   spicyNarrative,
 } from "@webywz/agent-trace";
 
-const trace = filterTrace(parseTrace(text, { format: "auto" }), { failures: true });
+const trace = redactTrace(filterTrace(parseTrace(text, { format: "auto" }), { failures: true }));
 process.stdout.write(renderTimeline(trace, { color: false }));
 console.log(await spicyNarrative(trace)); // offline; pass { localOnly: false } for LLM
 ```
@@ -181,7 +191,9 @@ npx @webywz/agent-trace --demo --no-color
 | **过滤** | `--only`、`--tool`、`--failures`，只看关心的切片 |
 | **导出** | Markdown PR 摘要、Mermaid 流程图、自包含 `--html`、`--json` / `--stats` 对接 CI |
 | **离线 spicy** | `--spicy` 本地叙事；`--spicy-llm` 可选联网 LLM 重写 |
-| **CI 门禁** | `--fail-on-error`：运行有失败时退出码 `1` |
+| **CI 门禁** | `--fail-on-error` 失败退出 `1`；`--max-duration` 限制总耗时（`30s` / `2m`） |
+| **脱敏** | `--redact`：分享前擦除 PEM / JWT / `sk-` / `ghp_` / Slack / AWS / Bearer |
+| **TAP** | `--tap`：输出 TAP version 13，方便 `prove` / CI（有失败则退出 `1`） |
 | **对比** | `--compare <file>`：对比工具序列 / 失败数（不同则退出 `1`） |
 | **Step Summary** | `--github-summary`：把 Markdown 追加到 `$GITHUB_STEP_SUMMARY`（或本地文件） |
 
@@ -206,6 +218,9 @@ agent-trace --failures --markdown traces/last-run.jsonl
 agent-trace --mermaid --demo
 agent-trace --html /tmp/at.html --demo
 agent-trace --fail-on-error --stats traces/ci.jsonl
+agent-trace --max-duration 30s --stats traces/ci.jsonl
+agent-trace --redact --markdown run.jsonl
+agent-trace --tap --demo
 agent-trace run.jsonl --compare baseline.jsonl
 agent-trace --github-summary --demo
 agent-trace --spicy --demo          # 仅本地
@@ -228,18 +243,21 @@ agent-trace --spicy-llm run.jsonl   # 需要 OPENAI_API_KEY 或 ANTHROPIC_API_KE
 | `--spicy` | **本地**叙事，不联网 |
 | `--spicy-llm` | 可选 LLM 叙事（需 API key） |
 | `--fail-on-error` | 有失败则退出码 `1` |
+| `--max-duration <n>` | 总耗时超过 N 则退出 `1`（`5000` / `30s` / `2m`） |
+| `--redact` | 脱敏（PEM、JWT、`sk-`/`sk-ant-`/`sk-proj-`、`ghp_`/`gho_`/`github_pat_`、Slack、AWS `AKIA…`、Bearer/Basic） |
+| `--tap` | 向 stdout 输出 TAP version 13（CI；有失败退出 `1`；可与 `--stats` 同用，stats 走 stderr） |
 | `--compare <file>` | 与另一份 trace 对比工具序列 / 失败数（不同则退出 `1`） |
 | `--github-summary [path]` | 追加短 Markdown 到 `$GITHUB_STEP_SUMMARY`、指定路径或 `./github-step-summary.md` |
 | `--demo` | 使用包内示例 |
 
-`--json` / `--stats` / `--markdown` / `--mermaid` / `--html` 五选一（默认为时间线）。
+`--json` / `--markdown` / `--mermaid` / `--html` / `--tap` 五选一（默认为时间线）。`--stats` 可单独使用；与 `--tap` 同用时 stats 打到 stderr。
 
 `--spicy` 始终离线。`--spicy-llm` 失败时仍回退到本地叙事，不会卡住主输出。
 
 | 退出码 | 含义 |
 | --- | --- |
 | `0` | 正常输出，或 `--compare` 结构等价 |
-| `1` | 读写/解析错误；`--fail-on-error` 命中失败；`--compare` 有差异 |
+| `1` | 读写/解析错误；`--fail-on-error` / `--tap` 命中失败；`--max-duration` 超限；`--compare` 有差异 |
 | `2` | 用法错误 |
 
 ### 能解析什么
@@ -258,11 +276,12 @@ agent-trace --spicy-llm run.jsonl   # 需要 OPENAI_API_KEY 或 ANTHROPIC_API_KE
 import {
   parseTrace,
   filterTrace,
+  redactTrace,
   renderTimeline,
   spicyNarrative,
 } from "@webywz/agent-trace";
 
-const trace = filterTrace(parseTrace(text, { format: "auto" }), { failures: true });
+const trace = redactTrace(filterTrace(parseTrace(text, { format: "auto" }), { failures: true }));
 process.stdout.write(renderTimeline(trace, { color: false }));
 console.log(await spicyNarrative(trace)); // 默认离线；{ localOnly: false } 才联网
 ```

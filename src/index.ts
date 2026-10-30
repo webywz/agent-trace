@@ -31,3 +31,8 @@ export { compareTraces, compareMarkdown, toolSequence, diffToolSequences } from 
 export type { CompareResult } from "./compare.js";
 export { appendGithubSummary, resolveGithubSummaryPath, DEFAULT_GITHUB_SUMMARY } from "./github-summary.js";
 export { renderGithubSummary } from "./summary-md.js";
+
+export { redactText, redactValue, redactTrace, REDACTED } from "./redact.js";
+export { renderTap } from "./tap.js";
+export type { TapResult } from "./tap.js";
+export { parseDurationMs } from "./duration.js";

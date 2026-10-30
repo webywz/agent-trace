@@ -1,4 +1,5 @@
 import type { StepKind, TraceFormat } from "./types.js";
+import { parseDurationMs } from "./duration.js";
 import { parseKindList, parseToolList } from "./filter.js";
 
 export interface CliArgs {
@@ -30,6 +31,12 @@ export interface CliArgs {
   githubSummary?: string | true;
   /** HTML report: true = stdout; string = write to path. */
   html?: string | true;
+  /** Scrub common secret shapes from step content before render/export. */
+  redact: boolean;
+  /** Fail if trace.stats.durationMs exceeds this (milliseconds). */
+  maxDurationMs?: number;
+  /** Emit TAP version 13 to stdout (CI-friendly). */
+  tap: boolean;
 }
 
 export class UsageError extends Error {
@@ -88,6 +95,9 @@ const FLAGS = [
   "--compare",
   "--github-summary",
   "--html",
+  "--redact",
+  "--max-duration",
+  "--tap",
 ];
 
 export function parseArgs(argv: string[]): CliArgs {
@@ -105,6 +115,8 @@ export function parseArgs(argv: string[]): CliArgs {
     markdown: false,
     mermaid: false,
     failures: false,
+    redact: false,
+    tap: false,
   };
 
   const rest = argv.slice(2);
@@ -177,6 +189,14 @@ export function parseArgs(argv: string[]): CliArgs {
     }
     if (token === "--failures") {
       args.failures = true;
+      continue;
+    }
+    if (token === "--redact") {
+      args.redact = true;
+      continue;
+    }
+    if (token === "--tap") {
+      args.tap = true;
       continue;
     }
     if (token === "--html") {
@@ -254,6 +274,18 @@ export function parseArgs(argv: string[]): CliArgs {
       args.compare = value;
       continue;
     }
+    if (flag === "--max-duration") {
+      const value = inline ?? rest[++i];
+      if (!value || value.startsWith("-")) {
+        throw new UsageError("--max-duration expects a duration (e.g. 5000, 30s, 2m)");
+      }
+      try {
+        args.maxDurationMs = parseDurationMs(value);
+      } catch (error) {
+        throw new UsageError(error instanceof Error ? error.message : String(error));
+      }
+      continue;
+    }
     if (flag === "--html") {
       args.html = inline === undefined || inline === "" ? true : inline;
       continue;
@@ -279,8 +311,12 @@ export function parseArgs(argv: string[]): CliArgs {
     throw new UsageError("do not pass a file with --demo (the bundled sample is used)");
   }
 
-  const outputs = [args.json, args.stats, args.markdown, args.mermaid, args.html].filter(Boolean).length;
-  if (outputs > 1) {
+  const exclusive = [args.json, args.markdown, args.mermaid, args.html, args.tap].filter(Boolean).length;
+  if (exclusive > 1) {
+    throw new UsageError("use only one of --json, --markdown, --mermaid, --html, --tap");
+  }
+  // --stats alone is fine; with --tap it prints on stderr. Not combined with other exports.
+  if (args.stats && (args.json || args.markdown || args.mermaid || args.html)) {
     throw new UsageError("use only one of --json, --stats, --markdown, --mermaid, --html");
   }
 
@@ -355,6 +391,9 @@ Options:
       --spicy            Local narrative recap (no network)
       --spicy-llm        Narrative via OpenAI/Anthropic (needs API key)
       --fail-on-error    Exit 1 if the run had failures
+      --max-duration <n> Exit 1 if run duration exceeds N (ms, or 30s / 2m)
+      --redact           Scrub secrets (PEM, JWT, sk-, ghp_, Slack, AWS, Bearer…)
+      --tap              TAP version 13 on stdout (CI; exit 1 on failures)
       --compare <file>   Diff tool sequence vs another trace (exit 1 on differ)
       --github-summary [path]  Append Markdown to GITHUB_STEP_SUMMARY or path
       --demo             Render bundled examples/run.jsonl
@@ -378,7 +417,7 @@ Formats:
 
 Exit codes:
   0  ok (or --compare with equivalent structure)
-  1  I/O or parse error; --fail-on-error with failures; --compare differs
+  1  I/O or parse error; --fail-on-error / --tap with failures; --max-duration exceeded; --compare differs
   2  usage error (bad flag, missing file)
 
 Examples:
@@ -395,6 +434,9 @@ Examples:
   agent-trace --html /tmp/at.html --demo
   agent-trace --mermaid --demo
   agent-trace --fail-on-error --stats traces/ci.jsonl
+  agent-trace --max-duration 30s --stats traces/ci.jsonl
+  agent-trace --redact --markdown run.jsonl
+  agent-trace --tap --demo
   agent-trace --compare baseline.jsonl traces/ci.jsonl
   agent-trace --github-summary --demo
 `;
