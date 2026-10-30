@@ -70,6 +70,8 @@ agent-trace --demo
 agent-trace run.jsonl
 cat run.jsonl | agent-trace
 agent-trace --format anthropic dump.json
+agent-trace --format ollama dump.jsonl
+agent-trace --format openai-compat dump.jsonl
 agent-trace --only tool,error --stats --demo
 agent-trace --failures --markdown traces/last-run.jsonl
 agent-trace --mermaid --demo
@@ -100,7 +102,7 @@ agent-trace [options] -                 # stdin
 | --- | --- |
 | `-f, --format` | `auto` (default), `openai`, `anthropic`, `claude-code` (aliases: `claude_code`, `claude`), `codex`, `langchain`, `ollama`, `openai-compat`, `jsonl`, `generic` |
 | `-j, --json` | Normalized trace as JSON |
-| `--stats` | Summary + per-tool breakdown |
+| `--stats` | Summary (includes detected format) + per-tool breakdown |
 | `--markdown`, `--md` | GitHub-friendly Markdown report |
 | `--html [path]` | Self-contained HTML timeline (stdout, or write to path; offline, no CDN) |
 | `--mermaid` | Mermaid flowchart |
@@ -195,7 +197,7 @@ npx @webywz/agent-trace --demo --no-color
 
 | | |
 | --- | --- |
-| **归一化** | OpenAI、Anthropic / Claude Messages、Claude Code stream-json、Codex CLI JSONL、LangChain / LangSmith、JSONL、通用事件 |
+| **归一化** | OpenAI、Anthropic / Claude Messages、Claude Code stream-json、Codex CLI JSONL、LangChain / LangSmith、Ollama / OpenAI-compat、JSONL、通用事件 |
 | **时间线** | 编号步骤：思考、工具、结果、错误、耗时 |
 | **过滤** | `--only`、`--tool`、`--failures`，只看关心的切片 |
 | **导出** | Markdown PR 摘要、Mermaid 流程图、自包含 `--html`、`--json` / `--stats` 对接 CI |
@@ -222,6 +224,8 @@ agent-trace --demo
 agent-trace run.jsonl
 cat run.jsonl | agent-trace
 agent-trace --format anthropic dump.json
+agent-trace --format ollama dump.jsonl
+agent-trace --format openai-compat dump.jsonl
 agent-trace --only tool,error --stats --demo
 agent-trace --failures --markdown traces/last-run.jsonl
 agent-trace --mermaid --demo
@@ -242,7 +246,7 @@ agent-trace --spicy-llm run.jsonl   # 需要 OPENAI_API_KEY 或 ANTHROPIC_API_KE
 | --- | --- |
 | `-f, --format` | `auto`（默认）/ `openai` / `anthropic` / `claude-code`（别名 `claude_code`/`claude`）/ `codex` / `langchain` / `ollama` / `openai-compat` / `jsonl` / `generic` |
 | `-j, --json` | 输出归一化 JSON |
-| `--stats` | 摘要 + 按工具拆分 |
+| `--stats` | 摘要（含检测到的 format）+ 按工具拆分 |
 | `--markdown`, `--md` | GitHub 友好的 Markdown 报告 |
 | `--html [path]` | 自包含 HTML 时间线（stdout，或写入路径；离线、无 CDN） |
 | `--mermaid` | Mermaid 流程图 |
@@ -275,6 +279,7 @@ agent-trace --spicy-llm run.jsonl   # 需要 OPENAI_API_KEY 或 ANTHROPIC_API_KE
 ### 能解析什么
 
 - **OpenAI** — `chat.completion`、`tool_calls`、Responses API、流式 JSONL
+- **Ollama / OpenAI-compat** — `/api/chat` + `/api/generate` NDJSON；OpenAI-compat `chat.completion(.chunk)` JSONL
 - **Anthropic** — Claude Messages：`text` / `tool_use` / `tool_result` / `thinking`
 - **Claude Code** — `stream-json`（`assistant` / `user` / `result` + 嵌套 content blocks）
 - **Codex** — CLI JSONL（`{ timestamp, type, payload }`）

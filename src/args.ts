@@ -414,7 +414,7 @@ Usage:
 Options:
   -f, --format <fmt>     ${FORMAT_LIST} (default: auto)
   -j, --json             Normalized trace as JSON
-      --stats            Summary + per-tool breakdown
+      --stats            Summary (detected format) + per-tool breakdown
       --markdown, --md   GitHub-friendly Markdown report
       --html [path]      Self-contained HTML report (stdout, or write to path)
       --mermaid          Mermaid flowchart (paste into a \`\`\`mermaid fence)
@@ -462,6 +462,8 @@ Examples:
   agent-trace --demo
   agent-trace run.jsonl
   agent-trace --format openai dump.json
+  agent-trace --format ollama dump.jsonl
+  agent-trace --format openai-compat dump.jsonl
   agent-trace --json run.jsonl | jq .stats
   agent-trace --stats --demo
   agent-trace --only tool,error --demo

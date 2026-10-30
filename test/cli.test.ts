@@ -180,6 +180,8 @@ describe("CLI", () => {
     assert.match(stdout, /--only/);
     assert.match(stdout, /--failures/);
     assert.match(stdout, /generic/);
+    assert.match(stdout, /ollama/);
+    assert.match(stdout, /openai-compat/);
     assert.match(stdout, /Exit codes:/);
   });
 
@@ -207,6 +209,7 @@ describe("CLI", () => {
   it("prints a summary with per-tool breakdown via --stats", async () => {
     const { code, stdout } = await run(["--stats", "--no-color", fixturePath("examples/run.jsonl")]);
     assert.equal(code, 0);
+    assert.match(stdout, /format \w+/);
     assert.match(stdout, /19 steps/);
     assert.match(stdout, /7 tool calls/);
     assert.match(stdout, /1 failure/);
