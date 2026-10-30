@@ -17,7 +17,7 @@ What to look for:
 
 - Step 13 is `error  run_tests` — the flake still reproduced.
 - The footer is the autopsy: 19 steps, 7 tool calls, 1 failure, ~15s.
-- `--spicy` names the failed tool without sending the log anywhere unless an API key is set.
+- `--spicy` names the failed tool locally (no network). Use `--spicy-llm` to opt into an LLM call when an API key is set.
 
 This is the fixture `--demo` renders.
 

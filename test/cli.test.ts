@@ -38,6 +38,14 @@ describe("parseArgs", () => {
     const args = parseArgs(["node", "agent-trace", "--format", "openai", "--spicy", "run.jsonl"]);
     assert.equal(args.format, "openai");
     assert.equal(args.spicy, true);
+    assert.equal(args.spicyLlm, false);
+    assert.equal(args.file, "run.jsonl");
+  });
+
+  it("treats --spicy-llm as spicy + LLM opt-in", () => {
+    const args = parseArgs(["node", "agent-trace", "--spicy-llm", "run.jsonl"]);
+    assert.equal(args.spicy, true);
+    assert.equal(args.spicyLlm, true);
     assert.equal(args.file, "run.jsonl");
   });
 
@@ -130,6 +138,25 @@ describe("CLI", () => {
     assert.match(stdout, /run_tests/);
   });
 
+  it("keeps --spicy local even when API keys are set", async () => {
+    const prevOpenAI = process.env.OPENAI_API_KEY;
+    const prevAnthropic = process.env.ANTHROPIC_API_KEY;
+    process.env.OPENAI_API_KEY = "sk-test-should-not-be-used";
+    process.env.ANTHROPIC_API_KEY = "ant-test-should-not-be-used";
+    try {
+      const { code, stdout } = await run(["--spicy", "--no-color", fixturePath("examples/run.jsonl")]);
+      assert.equal(code, 0);
+      assert.match(stdout, /spicy/);
+      assert.match(stdout, /run_tests/);
+      assert.doesNotMatch(stdout, /spicy LLM call failed/);
+    } finally {
+      if (prevOpenAI === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = prevOpenAI;
+      if (prevAnthropic === undefined) delete process.env.ANTHROPIC_API_KEY;
+      else process.env.ANTHROPIC_API_KEY = prevAnthropic;
+    }
+  });
+
   it("reads stdin", async () => {
     const { code, stdout } = await run(["-"], JSON.stringify([{ type: "user", content: "ping" }]));
     assert.equal(code, 0);
@@ -141,6 +168,7 @@ describe("CLI", () => {
     assert.equal(code, 0);
     assert.match(stdout, /Usage:/);
     assert.match(stdout, /--spicy/);
+    assert.match(stdout, /--spicy-llm/);
     assert.match(stdout, /--demo/);
     assert.match(stdout, /--fail-on-error/);
     assert.match(stdout, /--stats/);

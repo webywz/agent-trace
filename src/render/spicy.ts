@@ -3,7 +3,8 @@ import { collapseWs, compactJson, truncate } from "../util.js";
 
 export async function spicyNarrative(trace: Trace, options: SpicyOptions = {}): Promise<string> {
   const local = localSpicy(trace);
-  if (options.localOnly) return local;
+  // Offline by default. Opt in with { localOnly: false } (CLI: --spicy-llm).
+  if (options.localOnly !== false) return local;
 
   const openaiKey = process.env.OPENAI_API_KEY;
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
@@ -88,9 +89,10 @@ async function callOpenAI(trace: Trace, apiKey: string, options: SpicyOptions): 
 }
 
 async function callAnthropic(trace: Trace, apiKey: string, options: SpicyOptions): Promise<string> {
+  const base = (process.env.ANTHROPIC_BASE_URL ?? "https://api.anthropic.com/v1").replace(/\/$/, "");
   const model = options.model ?? process.env.ANTHROPIC_MODEL ?? "claude-3-5-haiku-latest";
   const response = await fetchWithTimeout(
-    "https://api.anthropic.com/v1/messages",
+    `${base}/messages`,
     {
       method: "POST",
       headers: {
