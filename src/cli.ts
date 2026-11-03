@@ -9,8 +9,9 @@ import { compareMarkdown, compareTraces } from "./compare.js";
 import { filterTrace } from "./filter.js";
 import { appendGithubSummary, resolveGithubSummaryPath } from "./github-summary.js";
 import { parseTrace } from "./parse/index.js";
-import { readInput, wrapIoError } from "./read-input.js";
+import { readInput, wrapIoError, followFile } from "./read-input.js";
 import { redactTrace } from "./redact.js";
+import { splitJsonl } from "./parse/jsonl.js";
 import { renderHtml } from "./render/html.js";
 import { renderMarkdown } from "./render/markdown.js";
 import { renderMermaid } from "./render/mermaid.js";
@@ -23,6 +24,89 @@ import { renderTap } from "./tap.js";
 import { formatDuration } from "./util.js";
 
 const VERSION = readVersion();
+
+async function runFollow(args: ReturnType<typeof parseArgs>, version: string): Promise<number> {
+  const file = args.file!;
+  const lines: string[] = [];
+  let lastRenderedCount = 0;
+  let sigintReceived = false;
+
+  const abortController = new AbortController();
+
+  const handleSigint = () => {
+    sigintReceived = true;
+    abortController.abort();
+  };
+
+  process.on("SIGINT", handleSigint);
+
+  const renderCurrent = () => {
+    if (lines.length === lastRenderedCount) return;
+
+    const text = lines.join("\n");
+    const { rows } = splitJsonl(text);
+    if (rows.length === 0) return;
+
+    try {
+      let trace = parseTrace(text, { format: args.format, source: file });
+      trace = filterTrace(trace, {
+        only: args.only,
+        tools: args.tools,
+        failures: args.failures,
+      });
+      if (args.redact) {
+        trace = redactTrace(trace);
+      }
+
+      if (args.json) {
+        const payload = {
+          format: trace.format,
+          source: trace.source,
+          stats: trace.stats,
+          warnings: trace.warnings,
+          steps: trace.steps,
+        };
+        process.stdout.write(`\x1b[2J\x1b[H${JSON.stringify(payload, null, 2)}\n`);
+      } else if (args.markdown) {
+        process.stdout.write(`\x1b[2J\x1b[H${renderMarkdown(trace, { maxContent: args.maxContent })}`);
+      } else if (args.stats) {
+        process.stdout.write(`\x1b[2J\x1b[H${statsReport(trace)}\n`);
+      } else {
+        const timeline = renderTimeline(trace, {
+          color: args.color,
+          ascii: args.ascii,
+          width: args.width,
+          maxContent: args.maxContent,
+        });
+        process.stdout.write(`\x1b[2J\x1b[H${timeline}`);
+      }
+
+      lastRenderedCount = lines.length;
+    } catch {
+      // Ignore parse errors in follow mode; wait for more data
+    }
+  };
+
+  try {
+    await followFile(file, {
+      pollMs: 100,
+      signal: abortController.signal,
+      onLine: (line) => {
+        lines.push(line);
+        renderCurrent();
+      },
+    });
+  } catch (error) {
+    if (!sigintReceived) {
+      printErr(error);
+      process.off("SIGINT", handleSigint);
+      return exitCodeFor(error);
+    }
+  }
+
+  process.off("SIGINT", handleSigint);
+  return 0;
+}
 
 async function main(argv: string[]): Promise<number> {
   let args;
@@ -40,6 +124,10 @@ async function main(argv: string[]): Promise<number> {
   if (args.version) {
     process.stdout.write(`agent-trace ${VERSION}\n`);
     return 0;
+  }
+
+  if (args.follow) {
+    return await runFollow(args, VERSION);
   }
 
   let text: string;

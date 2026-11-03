@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync, appendFileSync, unlinkSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -69,6 +69,16 @@ describe("parseArgs", () => {
     assert.equal(args.demo, true);
     assert.equal(args.failOnError, true);
     assert.equal(args.stats, true);
+  });
+
+  it("parses --follow and -F", () => {
+    const longForm = parseArgs(["node", "agent-trace", "--follow", "run.jsonl"]);
+    assert.equal(longForm.follow, true);
+    assert.equal(longForm.file, "run.jsonl");
+
+    const shortForm = parseArgs(["node", "agent-trace", "-F", "run.jsonl"]);
+    assert.equal(shortForm.follow, true);
+    assert.equal(shortForm.file, "run.jsonl");
   });
 
   it("rejects unknown formats", () => {
@@ -291,6 +301,56 @@ describe("CLI", () => {
       fixturePath("examples/generic.json"),
     ]);
     assert.equal(code, 0, stderr);
+  });
+
+  it("follows a growing file with --follow", async () => {
+    const tmpFile = join(root, "test-follow.jsonl");
+    const initialLine = JSON.stringify({ role: "user", content: "initial" });
+    writeFileSync(tmpFile, initialLine + "\n", "utf8");
+
+    const child = spawn(tsx, [cli, "--follow", "--stats", "--no-color", tmpFile], {
+      env: { ...process.env, NO_COLOR: "1", FORCE_COLOR: "0" },
+    });
+
+    let stdout = "";
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    appendFileSync(tmpFile, JSON.stringify({ role: "assistant", content: "response" }) + "\n", "utf8");
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    child.kill("SIGINT");
+
+    await new Promise((resolve) => {
+      child.on("close", (code) => {
+        assert.equal(code, 0);
+        assert.match(stdout, /2 steps/);
+        unlinkSync(tmpFile);
+        resolve(undefined);
+      });
+    });
+  });
+
+  it("rejects --follow with --demo", async () => {
+    const { code, stderr } = await run(["--follow", "--demo"]);
+    assert.equal(code, 2);
+    assert.match(stderr, /--follow cannot be used with --demo/);
+  });
+
+  it("rejects --follow with stdin", async () => {
+    const { code, stderr } = await run(["--follow", "-"]);
+    assert.equal(code, 2);
+    assert.match(stderr, /--follow cannot be used with stdin/);
+  });
+
+  it("rejects --follow without a file", async () => {
+    const { code, stderr } = await run(["--follow"]);
+    assert.equal(code, 2);
+    assert.match(stderr, /--follow requires a file path/);
   });
 
   it("emits TAP and exits 1 on demo failures", async () => {

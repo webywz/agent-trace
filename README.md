@@ -47,6 +47,7 @@ jsonl  ·  8 steps  ·  7 tool calls  ·  1 failure
 | **Timeline** | Numbered steps: thoughts, tools, results, errors, durations |
 | **Filter** | `--only`, `--tool`, `--failures` for the slice you care about |
 | **Export** | Markdown for PR summaries, Mermaid for flowcharts, self-contained `--html`, `--json` / `--stats` for CI |
+| **Follow** | `--follow` / `-F` tracks growing files (like `tail -f`) for live agent runs |
 | **Offline spicy** | `--spicy` local narrative recap; `--spicy-llm` opt-in LLM rewrite |
 | **CI gate** | `--fail-on-error` exits `1` on failures; `--max-duration` budgets wall time (`30s` / `2m`); `--max-tokens` budgets in+out tokens; `--sarif` / `--junit` write Code Scanning SARIF / JUnit XML |
 | **Redact** | `--redact` scrubs PEM / JWT / `sk-` / `ghp_` / Slack / AWS / Bearer before share |
@@ -87,6 +88,8 @@ agent-trace --redact --markdown run.jsonl
 agent-trace --tap --demo
 agent-trace run.jsonl --compare baseline.jsonl
 agent-trace --github-summary --demo
+agent-trace --follow live.jsonl     # track growing file (Ctrl+C to exit)
+agent-trace -F --stats live.jsonl   # follow with stats view
 agent-trace --spicy --demo          # local only
 agent-trace --spicy-llm run.jsonl   # needs OPENAI_API_KEY or ANTHROPIC_API_KEY
 ```
@@ -101,6 +104,7 @@ agent-trace [options] -                 # stdin
 | Flag | What it does |
 | --- | --- |
 | `-f, --format` | `auto` (default), `openai`, `anthropic`, `claude-code` (aliases: `claude_code`, `claude`), `codex`, `langchain`, `ollama`, `openai-compat`, `jsonl`, `generic` |
+| `-F, --follow` | Follow the file as it grows (like `tail -f`); press Ctrl+C to exit cleanly |
 | `-j, --json` | Normalized trace as JSON |
 | `--stats` | Summary (includes detected format) + per-tool breakdown |
 | `--markdown`, `--md` | GitHub-friendly Markdown report |
@@ -201,6 +205,7 @@ npx @webywz/agent-trace --demo --no-color
 | **时间线** | 编号步骤：思考、工具、结果、错误、耗时 |
 | **过滤** | `--only`、`--tool`、`--failures`，只看关心的切片 |
 | **导出** | Markdown PR 摘要、Mermaid 流程图、自包含 `--html`、`--json` / `--stats` 对接 CI |
+| **追踪** | `--follow` / `-F` 追踪增长中的文件（类似 `tail -f`），实时查看 agent 运行 |
 | **离线 spicy** | `--spicy` 本地叙事；`--spicy-llm` 可选联网 LLM 重写 |
 | **CI 门禁** | `--fail-on-error` 失败退出 `1`；`--max-duration` 限制总耗时（`30s` / `2m`）；`--max-tokens` 限制 in+out token；`--sarif` / `--junit` 写出 Code Scanning SARIF / JUnit XML |
 | **脱敏** | `--redact`：分享前擦除 PEM / JWT / `sk-` / `ghp_` / Slack / AWS / Bearer |
@@ -236,6 +241,8 @@ agent-trace --redact --markdown run.jsonl
 agent-trace --tap --demo
 agent-trace run.jsonl --compare baseline.jsonl
 agent-trace --github-summary --demo
+agent-trace --follow live.jsonl     # 追踪增长中的文件（Ctrl+C 退出）
+agent-trace -F --stats live.jsonl   # 追踪并显示统计信息
 agent-trace --spicy --demo          # 仅本地
 agent-trace --spicy-llm run.jsonl   # 需要 OPENAI_API_KEY 或 ANTHROPIC_API_KEY
 ```
@@ -245,6 +252,7 @@ agent-trace --spicy-llm run.jsonl   # 需要 OPENAI_API_KEY 或 ANTHROPIC_API_KE
 | 参数 | 作用 |
 | --- | --- |
 | `-f, --format` | `auto`（默认）/ `openai` / `anthropic` / `claude-code`（别名 `claude_code`/`claude`）/ `codex` / `langchain` / `ollama` / `openai-compat` / `jsonl` / `generic` |
+| `-F, --follow` | 追踪增长中的文件（类似 `tail -f`）；按 Ctrl+C 干净退出 |
 | `-j, --json` | 输出归一化 JSON |
 | `--stats` | 摘要（含检测到的 format）+ 按工具拆分 |
 | `--markdown`, `--md` | GitHub 友好的 Markdown 报告 |

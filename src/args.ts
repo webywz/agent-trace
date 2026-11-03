@@ -43,6 +43,8 @@ export interface CliArgs {
   junit?: string;
   /** Emit TAP version 13 to stdout (CI-friendly). */
   tap: boolean;
+  /** Follow the file as it grows (like tail -f). */
+  follow: boolean;
 }
 
 export class UsageError extends Error {
@@ -91,6 +93,8 @@ const FLAGS = [
   "--color",
   "-f",
   "--format",
+  "-F",
+  "--follow",
   "--width",
   "--max-content",
   "--demo",
@@ -130,6 +134,7 @@ export function parseArgs(argv: string[]): CliArgs {
     failures: false,
     redact: false,
     tap: false,
+    follow: false,
   };
 
   const rest = argv.slice(2);
@@ -210,6 +215,10 @@ export function parseArgs(argv: string[]): CliArgs {
     }
     if (token === "--tap") {
       args.tap = true;
+      continue;
+    }
+    if (token === "-F" || token === "--follow") {
+      args.follow = true;
       continue;
     }
     if (token === "--html") {
@@ -344,6 +353,22 @@ export function parseArgs(argv: string[]): CliArgs {
     throw new UsageError("do not pass a file with --demo (the bundled sample is used)");
   }
 
+  if (args.follow && args.demo) {
+    throw new UsageError("--follow cannot be used with --demo");
+  }
+
+  if (args.follow && args.file === "-") {
+    throw new UsageError("--follow cannot be used with stdin");
+  }
+
+  if (args.follow && !args.file) {
+    throw new UsageError("--follow requires a file path");
+  }
+
+  if (args.follow && args.compare) {
+    throw new UsageError("--follow cannot be used with --compare");
+  }
+
   const exclusive = [args.json, args.markdown, args.mermaid, args.html, args.tap].filter(Boolean).length;
   if (exclusive > 1) {
     throw new UsageError("use only one of --json, --markdown, --mermaid, --html, --tap");
@@ -413,6 +438,7 @@ Usage:
 
 Options:
   -f, --format <fmt>     ${FORMAT_LIST} (default: auto)
+  -F, --follow           Follow the file as it grows (like tail -f)
   -j, --json             Normalized trace as JSON
       --stats            Summary (detected format) + per-tool breakdown
       --markdown, --md   GitHub-friendly Markdown report
@@ -482,5 +508,7 @@ Examples:
   agent-trace --tap --demo
   agent-trace --compare baseline.jsonl traces/ci.jsonl
   agent-trace --github-summary --demo
+  agent-trace --follow live.jsonl
+  agent-trace -F --stats live.jsonl
 `;
 }
