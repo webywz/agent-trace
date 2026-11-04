@@ -81,6 +81,24 @@ describe("parseArgs", () => {
     assert.equal(shortForm.file, "run.jsonl");
   });
 
+  it("parses --from-end with --follow", () => {
+    const args = parseArgs(["node", "agent-trace", "--follow", "--from-end", "run.jsonl"]);
+    assert.equal(args.follow, true);
+    assert.equal(args.fromEnd, true);
+    assert.equal(args.file, "run.jsonl");
+  });
+
+  it("rejects --from-end without --follow", () => {
+    assert.throws(
+      () => parseArgs(["node", "agent-trace", "--from-end", "run.jsonl"]),
+      (error: unknown) => {
+        assert.ok(error instanceof UsageError);
+        assert.match(error.message, /--from-end requires --follow/);
+        return true;
+      },
+    );
+  });
+
   it("rejects unknown formats", () => {
     assert.throws(
       () => parseArgs(["node", "agent-trace", "--format", "protobuf"]),
@@ -351,6 +369,45 @@ describe("CLI", () => {
     const { code, stderr } = await run(["--follow"]);
     assert.equal(code, 2);
     assert.match(stderr, /--follow requires a file path/);
+  });
+
+  it("follows from end with --from-end, skipping existing content", async () => {
+    const tmpFile = join(root, "test-follow-from-end.jsonl");
+    const existingLine = JSON.stringify({ role: "user", content: "should be skipped" });
+    writeFileSync(tmpFile, existingLine + "\n", "utf8");
+
+    const child = spawn(tsx, [cli, "--follow", "--from-end", "--no-color", tmpFile], {
+      env: { ...process.env, NO_COLOR: "1", FORCE_COLOR: "0" },
+    });
+
+    let stdout = "";
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    appendFileSync(tmpFile, JSON.stringify({ role: "assistant", content: "new line" }) + "\n", "utf8");
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    child.kill("SIGINT");
+
+    await new Promise((resolve) => {
+      child.on("close", (code) => {
+        assert.equal(code, 0);
+        assert.match(stdout, /1 step/);
+        assert.doesNotMatch(stdout, /should be skipped/);
+        unlinkSync(tmpFile);
+        resolve(undefined);
+      });
+    });
+  });
+
+  it("rejects --from-end without --follow", async () => {
+    const { code, stderr } = await run(["--from-end", fixturePath("examples/run.jsonl")]);
+    assert.equal(code, 2);
+    assert.match(stderr, /--from-end requires --follow/);
   });
 
   it("emits TAP and exits 1 on demo failures", async () => {

@@ -21,10 +21,11 @@ export interface FollowOptions {
   pollMs?: number;
   onLine: (line: string) => void;
   signal?: AbortSignal;
+  fromEnd?: boolean;
 }
 
 export async function followFile(file: string, options: FollowOptions): Promise<void> {
-  const { pollMs = 100, onLine, signal } = options;
+  const { pollMs = 100, onLine, signal, fromEnd = false } = options;
 
   let fileHandle;
   try {
@@ -34,6 +35,14 @@ export async function followFile(file: string, options: FollowOptions): Promise<
   }
 
   let position = 0;
+  if (fromEnd) {
+    try {
+      const stats = await stat(file);
+      position = stats.size;
+    } catch (error) {
+      throw wrapIoError(error, file);
+    }
+  }
   let buffer = "";
 
   const cleanup = () => {

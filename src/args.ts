@@ -45,6 +45,8 @@ export interface CliArgs {
   tap: boolean;
   /** Follow the file as it grows (like tail -f). */
   follow: boolean;
+  /** Start following from the end (skip existing content). Requires --follow. */
+  fromEnd: boolean;
 }
 
 export class UsageError extends Error {
@@ -95,6 +97,7 @@ const FLAGS = [
   "--format",
   "-F",
   "--follow",
+  "--from-end",
   "--width",
   "--max-content",
   "--demo",
@@ -135,6 +138,7 @@ export function parseArgs(argv: string[]): CliArgs {
     redact: false,
     tap: false,
     follow: false,
+    fromEnd: false,
   };
 
   const rest = argv.slice(2);
@@ -219,6 +223,10 @@ export function parseArgs(argv: string[]): CliArgs {
     }
     if (token === "-F" || token === "--follow") {
       args.follow = true;
+      continue;
+    }
+    if (token === "--from-end") {
+      args.fromEnd = true;
       continue;
     }
     if (token === "--html") {
@@ -369,6 +377,10 @@ export function parseArgs(argv: string[]): CliArgs {
     throw new UsageError("--follow cannot be used with --compare");
   }
 
+  if (args.fromEnd && !args.follow) {
+    throw new UsageError("--from-end requires --follow");
+  }
+
   const exclusive = [args.json, args.markdown, args.mermaid, args.html, args.tap].filter(Boolean).length;
   if (exclusive > 1) {
     throw new UsageError("use only one of --json, --markdown, --mermaid, --html, --tap");
@@ -439,6 +451,7 @@ Usage:
 Options:
   -f, --format <fmt>     ${FORMAT_LIST} (default: auto)
   -F, --follow           Follow the file as it grows (like tail -f)
+      --from-end         Start following from EOF (skip existing; requires --follow)
   -j, --json             Normalized trace as JSON
       --stats            Summary (detected format) + per-tool breakdown
       --markdown, --md   GitHub-friendly Markdown report
@@ -510,5 +523,6 @@ Examples:
   agent-trace --github-summary --demo
   agent-trace --follow live.jsonl
   agent-trace -F --stats live.jsonl
+  agent-trace --follow --from-end live.jsonl
 `;
 }
