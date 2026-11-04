@@ -385,11 +385,13 @@ describe("CLI", () => {
       stdout += chunk;
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    // Node 18 needs more time to start watching
+    await new Promise((resolve) => setTimeout(resolve, 400));
 
     appendFileSync(tmpFile, JSON.stringify({ role: "assistant", content: "new line" }) + "\n", "utf8");
 
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    // Give more time for the append to be detected and rendered (especially on Node 18)
+    await new Promise((resolve) => setTimeout(resolve, 600));
 
     child.kill("SIGINT");
 
