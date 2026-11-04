@@ -88,10 +88,11 @@ agent-trace --redact --markdown run.jsonl
 agent-trace --tap --demo
 agent-trace run.jsonl --compare baseline.jsonl
 agent-trace --github-summary --demo
-agent-trace --follow live.jsonl     # track growing file (Ctrl+C to exit)
-agent-trace -F --stats live.jsonl   # follow with stats view
-agent-trace --spicy --demo          # local only
-agent-trace --spicy-llm run.jsonl   # needs OPENAI_API_KEY or ANTHROPIC_API_KEY
+agent-trace --follow live.jsonl              # track growing file (Ctrl+C to exit)
+agent-trace -F --stats live.jsonl            # follow with stats view
+agent-trace --follow --from-end live.jsonl   # follow from EOF (skip existing)
+agent-trace --spicy --demo                   # local only
+agent-trace --spicy-llm run.jsonl            # needs OPENAI_API_KEY or ANTHROPIC_API_KEY
 ```
 
 ### CLI
@@ -105,6 +106,7 @@ agent-trace [options] -                 # stdin
 | --- | --- |
 | `-f, --format` | `auto` (default), `openai`, `anthropic`, `claude-code` (aliases: `claude_code`, `claude`), `codex`, `langchain`, `ollama`, `openai-compat`, `jsonl`, `generic` |
 | `-F, --follow` | Follow the file as it grows (like `tail -f`); press Ctrl+C to exit cleanly |
+| `--from-end` | Start following from EOF (skip existing content); requires `--follow` |
 | `-j, --json` | Normalized trace as JSON |
 | `--stats` | Summary (includes detected format) + per-tool breakdown |
 | `--markdown`, `--md` | GitHub-friendly Markdown report |
@@ -241,10 +243,11 @@ agent-trace --redact --markdown run.jsonl
 agent-trace --tap --demo
 agent-trace run.jsonl --compare baseline.jsonl
 agent-trace --github-summary --demo
-agent-trace --follow live.jsonl     # 追踪增长中的文件（Ctrl+C 退出）
-agent-trace -F --stats live.jsonl   # 追踪并显示统计信息
-agent-trace --spicy --demo          # 仅本地
-agent-trace --spicy-llm run.jsonl   # 需要 OPENAI_API_KEY 或 ANTHROPIC_API_KEY
+agent-trace --follow live.jsonl              # 追踪增长中的文件（Ctrl+C 退出）
+agent-trace -F --stats live.jsonl            # 追踪并显示统计信息
+agent-trace --follow --from-end live.jsonl   # 从文件末尾开始追踪（跳过现有内容）
+agent-trace --spicy --demo                   # 仅本地
+agent-trace --spicy-llm run.jsonl            # 需要 OPENAI_API_KEY 或 ANTHROPIC_API_KEY
 ```
 
 ### 命令行要点
@@ -253,6 +256,7 @@ agent-trace --spicy-llm run.jsonl   # 需要 OPENAI_API_KEY 或 ANTHROPIC_API_KE
 | --- | --- |
 | `-f, --format` | `auto`（默认）/ `openai` / `anthropic` / `claude-code`（别名 `claude_code`/`claude`）/ `codex` / `langchain` / `ollama` / `openai-compat` / `jsonl` / `generic` |
 | `-F, --follow` | 追踪增长中的文件（类似 `tail -f`）；按 Ctrl+C 干净退出 |
+| `--from-end` | 从文件末尾开始追踪（跳过现有内容）；需要 `--follow` |
 | `-j, --json` | 输出归一化 JSON |
 | `--stats` | 摘要（含检测到的 format）+ 按工具拆分 |
 | `--markdown`, `--md` | GitHub 友好的 Markdown 报告 |

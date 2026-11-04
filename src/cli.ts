@@ -91,6 +91,7 @@ async function runFollow(args: ReturnType<typeof parseArgs>, version: string): P
     await followFile(file, {
       pollMs: 100,
       signal: abortController.signal,
+      fromEnd: args.fromEnd,
       onLine: (line) => {
         lines.push(line);
         renderCurrent();
